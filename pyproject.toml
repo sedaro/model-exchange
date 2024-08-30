@@ -1,0 +1,24 @@
+[project]
+name = "modex"
+version = "0.0.0"
+description = "Sedaro Model Exchange (ModEx)"
+authors = []
+readme = "README.md"
+requires-python = ">=3.7"
+keywords = []
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+  "xlwings",
+]
+
+# [build-system]
+# build-backend = "flit_core.buildapi"
+# requires = ["flit_core >=3.2,<4"]
+
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"

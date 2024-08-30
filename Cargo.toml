@@ -1,0 +1,23 @@
+[package]
+name = "modex"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = { version = "1.0.117", features = ["preserve_order"] }
+notify-debouncer-mini = "0.4.1"
+indexmap = { version = "2.2.6", features = ["serde"] }
+http = "1.1.0"
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+log = { version = "0.4", features = ["std", "serde"] }
+futures = "0.3"
+ureq = { version = "2.10", features = ["json"] }
+
+[dependencies.pyo3]
+version = "0.22.0"
+features = ["auto-initialize"]
+
+[env]
+PYO3_PYTHON = "./.venv/bin/python"
