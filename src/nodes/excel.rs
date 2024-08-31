@@ -18,12 +18,12 @@ use notify_debouncer_mini::{
 
 #[derive(Clone)]
 pub struct Excel {
-  pub identifier: String,
-  pub excel_filename: String,
-  pub sedaroml_filename: String,
-  representation: Option<Model>,
-  pub tx: mpsc::Sender<NodeCommands>,
-  pub rx: Arc<Mutex<mpsc::Receiver<NodeResponses>>>,
+  identifier: String,
+  excel_filename: String,
+  sedaroml_filename: String,
+  rep: Option<Model>,
+  tx: mpsc::Sender<NodeCommands>,
+  rx: Arc<Mutex<mpsc::Receiver<NodeResponses>>>,
 }
 
 impl Excel {
@@ -89,7 +89,7 @@ impl Excel {
       identifier: identifier.into(),
       excel_filename: filename.into(),
       sedaroml_filename: sedaroml_filename.clone(),
-      representation: None,
+      rep: None,
       tx: tx_to_node,
       rx: Arc::new(Mutex::new(rx_in_exchange)),
     };
@@ -100,23 +100,23 @@ impl Excel {
 impl Exchangeable for Excel {
   fn identifier(&self) -> String { self.identifier.clone() }
   fn sedaroml_filename(&self) -> String { self.sedaroml_filename.clone() }
-  fn representation(&self) -> &Model { 
-    match self.representation.borrow() {
-      Some(representation) => representation,
+  fn rep(&self) -> &Model { 
+    match self.rep.borrow() {
+      Some(rep) => rep,
       None => panic!("{}: Representation not initialized", self.identifier()),
     }
   }
-  fn representation_mut(&mut self) -> &mut Model {
+  fn rep_mut(&mut self) -> &mut Model {
     let iden = self.identifier();
-    match self.representation.borrow_mut() {
-      Some(representation) => representation,
+    match self.rep.borrow_mut() {
+      Some(rep) => rep,
       None => panic!("{}: Representation not initialized", iden),
     }
   }
   fn tx(&self) -> &mpsc::Sender<NodeCommands> { &self.tx }
   fn rx(&self) -> &Arc<Mutex<mpsc::Receiver<NodeResponses>>> { &self.rx }
-  fn refresh_representation(&mut self) {
-    self.representation = Some(read_model(&self.sedaroml_filename()).unwrap_or_else(
+  fn refresh_rep(&mut self) {
+    self.rep = Some(read_model(&self.sedaroml_filename()).unwrap_or_else(
       |e| panic!("{}: Failed to read SedaroML: {:?}", self.identifier(), e)
     ));
   }

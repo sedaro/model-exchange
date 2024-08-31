@@ -1,17 +1,15 @@
 /*
 TODO:
 2. Try in cosimulation (via adaptation of the custom watcher for cosim I guess?)
-3. Implement exchange lock (locks the entire exchange while a translation is in progress and is awaitable from things like tests)
+3. Implement exchange lock (locks the entire exchange while a translation is in progress and is awaitable from things like tests and conflict resolution)
 4. Handle conflict resolutions:
   - Watcher triggers while translation is in progress
   - Exchange wants to write a file that has changed since it was read
-4. Add Sedaro and Cameo "exchangeables"
+4. Add Cameo and AFSIM Nodes
 5. Satisfy remainder of Mosaic Warfare requirements: Web gui? REST API?
-6. How to handle startup chaos where the watchers get mounted and then things start creating/changing files because the SedaroML IR doesn't exist yet
-- I think the solution here is to read/create the rep before starting the watcher
-- Need to handle things like excel changing while the exchange isn't running, leaving a conflict between excel.xlsx and excel.json just that on start up, translations to excel.xlsx can't operate over the current state of excel.xlsx
+6. Need to handle things like excel changing while the exchange isn't running, leaving a conflict between excel.xlsx and excel.json just that on start up, translations to excel.xlsx can't operate over the current state of excel.xlsx
+- How to handle changes that occurred while exchange wasn't running?
 0. Colors to printing interface
-0. How to handle changes that occurred while exchange wasn't running?
 */
 
 // Docs content

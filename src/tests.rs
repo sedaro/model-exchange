@@ -86,20 +86,20 @@ mod tests {
   
     exchange.trigger_watch_for_model("e".into());
   
-    // println!("A: {:?}", models.get("a").unwrap().lock().unwrap().representation());
-    // println!("B: {:?}", models.get("b").unwrap().lock().unwrap().representation());
-    // println!("C: {:?}", models.get("c").unwrap().lock().unwrap().representation());
-    // println!("D: {:?}", models.get("d").unwrap().lock().unwrap().representation());
-    // println!("E: {:?}", models.get("e").unwrap().lock().unwrap().representation());
+    // println!("A: {:?}", models.get("a").unwrap().lock().unwrap().rep());
+    // println!("B: {:?}", models.get("b").unwrap().lock().unwrap().rep());
+    // println!("C: {:?}", models.get("c").unwrap().lock().unwrap().rep());
+    // println!("D: {:?}", models.get("d").unwrap().lock().unwrap().rep());
+    // println!("E: {:?}", models.get("e").unwrap().lock().unwrap().rep());
   
     // TODO: Eventually, wait on the translation round lock before running the tests
     sleep(Duration::from_millis(1000));
     println!("Starting testing...");
-    assert!(*a.lock().unwrap().representation().blocks.get("i").unwrap() == Block::from_iter([("v".into(), Value::Number(9.into()))]));
-    assert!(*b.lock().unwrap().representation().blocks.get("i").unwrap() == Block::from_iter([("v".into(), Value::Number(10.into()))]));
-    assert!(*c.lock().unwrap().representation().blocks.get("i").unwrap() == Block::from_iter([("v".into(), Value::Number(20.into()))]));
-    assert!(*d.lock().unwrap().representation().blocks.get("i").unwrap() == Block::from_iter([("v".into(), Value::Number(40.into()))]));
-    assert!(*e.lock().unwrap().representation().blocks.get("i").unwrap() == Block::from_iter([("v".into(), Value::Number(100.into()))]));
+    assert!(*a.lock().unwrap().rep().blocks.get("i").unwrap() == Block::from_iter([("v".into(), Value::Number(9.into()))]));
+    assert!(*b.lock().unwrap().rep().blocks.get("i").unwrap() == Block::from_iter([("v".into(), Value::Number(10.into()))]));
+    assert!(*c.lock().unwrap().rep().blocks.get("i").unwrap() == Block::from_iter([("v".into(), Value::Number(20.into()))]));
+    assert!(*d.lock().unwrap().rep().blocks.get("i").unwrap() == Block::from_iter([("v".into(), Value::Number(40.into()))]));
+    assert!(*e.lock().unwrap().rep().blocks.get("i").unwrap() == Block::from_iter([("v".into(), Value::Number(100.into()))]));
     println!("All tests passed!");
   }
 }

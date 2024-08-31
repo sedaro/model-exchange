@@ -83,7 +83,7 @@ impl Exchange {
         NodeResponses::Started => {},
         _ => { panic!("Failed to start node: {}", node.identifier()) }
       }
-      node.refresh_representation();
+      node.refresh_rep();
     }
 
     // Bind watchers for models
@@ -113,7 +113,7 @@ impl Exchange {
           let mut from = from.lock().unwrap();
 
           if !translation.is_empty() { // Optimization
-            from.refresh_representation(); // Refresh the model from disk
+            from.refresh_rep(); // Refresh the model from disk
           }
 
           for (to_iden, operations) in translation { // TODO: Make this order deterministic
@@ -128,7 +128,7 @@ impl Exchange {
             for operation in operations {
               match operation {
                 OperationFunction::Forward(op_name, op) => {
-                  match op(&from.representation(), &mut to.representation_mut()) {
+                  match op(&from.rep(), &mut to.rep_mut()) {
                     Ok(translation_status) => {
                       let arrow = match op_name {
                         Some(op_name) => format!("-- '{}' -->", op_name),
@@ -144,7 +144,7 @@ impl Exchange {
                   }
                 },
                 OperationFunction::Reverse(op_name, op) => {
-                  match op(&from.representation(), &mut to.representation_mut()) {
+                  match op(&from.rep(), &mut to.rep_mut()) {
                     Ok(translation_status) => {
                       let arrow = match op_name {
                         Some(op_name) => format!("-- '{}'^-1 -->", op_name),
@@ -165,7 +165,7 @@ impl Exchange {
             // Note that its important that a translation into a node only ever happen from one other node in a given round
             // not from > 1.  
             if changed { 
-              write_model(&to.sedaroml_filename(), &to.representation()).unwrap_or_else(
+              write_model(&to.sedaroml_filename(), &to.rep()).unwrap_or_else(
                 |e| panic!("Failed to write model to file: {}: {:?}", to.sedaroml_filename(), e)
               );
               to.tx_to_node(NodeCommands::Changed);

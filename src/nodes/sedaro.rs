@@ -22,7 +22,7 @@ pub enum SedaroCredentials {
 pub struct Sedaro {
   identifier: String,
   sedaroml_filename: String,
-  representation: Option<Model>,
+  rep: Option<Model>,
   tx: mpsc::Sender<NodeCommands>,
   rx: Arc<Mutex<mpsc::Receiver<NodeResponses>>>,
 }
@@ -106,7 +106,7 @@ impl Sedaro {
     let exchangeable: Sedaro = Sedaro {
       identifier: identifier.into(),
       sedaroml_filename,
-      representation: None,
+      rep: None,
       tx: tx_to_node,
       rx: Arc::new(Mutex::new(rx_in_exchange)),
     };
@@ -117,23 +117,23 @@ impl Sedaro {
 impl Exchangeable for Sedaro {
   fn identifier(&self) -> String { self.identifier.clone() }
   fn sedaroml_filename(&self) -> String { self.sedaroml_filename.clone() }
-  fn representation(&self) -> &Model { 
-    match self.representation.borrow() {
-      Some(representation) => representation,
+  fn rep(&self) -> &Model { 
+    match self.rep.borrow() {
+      Some(rep) => rep,
       None => panic!("{}: Representation not initialized", self.identifier()),
     }
   }
-  fn representation_mut(&mut self) -> &mut Model {
+  fn rep_mut(&mut self) -> &mut Model {
     let iden = self.identifier();
-    match self.representation.borrow_mut() {
-      Some(representation) => representation,
+    match self.rep.borrow_mut() {
+      Some(rep) => rep,
       None => panic!("{}: Representation not initialized", iden),
     }
   }
   fn tx(&self) -> &mpsc::Sender<NodeCommands> { &self.tx }
   fn rx(&self) -> &Arc<Mutex<mpsc::Receiver<NodeResponses>>> { &self.rx }
-  fn refresh_representation(&mut self) {
-    self.representation = Some(read_model(&self.sedaroml_filename()).unwrap_or_else(
+  fn refresh_rep(&mut self) {
+    self.rep = Some(read_model(&self.sedaroml_filename()).unwrap_or_else(
       |e| panic!("{}: Failed to read SedaroML: {:?}", self.identifier(), e)
     ));
   }

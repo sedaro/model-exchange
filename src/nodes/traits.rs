@@ -7,8 +7,8 @@ use std::sync::{Arc, Mutex};
 pub trait Exchangeable {
   fn identifier(&self) -> String;
   fn sedaroml_filename(&self) -> String;
-  fn representation(&self) -> &Model;
-  fn representation_mut(&mut self) -> &mut Model;
+  fn rep(&self) -> &Model;
+  fn rep_mut(&mut self) -> &mut Model;
   fn tx(&self) -> &Sender<NodeCommands>;
   fn rx(&self) -> &Arc<Mutex<Receiver<NodeResponses>>>;
   fn tx_to_node(&self, command: NodeCommands) { 
@@ -21,5 +21,5 @@ pub trait Exchangeable {
     self.rx_from_node()
   }
   fn rx_from_node(&self) -> NodeResponses { self.rx().lock().unwrap().recv().unwrap() }
-  fn refresh_representation(&mut self);
+  fn refresh_rep(&mut self);
 }
