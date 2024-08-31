@@ -12,11 +12,11 @@ mod tests {
 
   #[test]
   fn test_simple_exchange() {
-    let a = SedaroML::new("a", "a.txt");
-    let b = SedaroML::new("b", "b.txt");
-    let c = SedaroML::new("c", "c.txt");
-    let d = SedaroML::new("d", "d.txt");
-    let e = SedaroML::new("e", "e.txt");
+    let a = SedaroML::new("a".into(), "a.txt".into());
+    let b = SedaroML::new("b".into(), "b.txt".into());
+    let c = SedaroML::new("c".into(), "c.txt".into());
+    let d = SedaroML::new("d".into(), "d.txt".into());
+    let e = SedaroML::new("e".into(), "e.txt".into());
     let add_one = Operation {
       name: Some("+1".into()),
       forward: |from: &Model, to: &mut Model| {
@@ -84,7 +84,7 @@ mod tests {
     };
     let exchange = Exchange::new(vec![t_a, t_b, t_c, t_d]);
   
-    exchange.trigger_watch_for_model("e");
+    exchange.trigger_watch_for_model("e".into());
   
     // println!("A: {:?}", models.get("a").unwrap().lock().unwrap().representation());
     // println!("B: {:?}", models.get("b").unwrap().lock().unwrap().representation());

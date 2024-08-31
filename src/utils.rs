@@ -9,7 +9,7 @@ use pyo3::prelude::*;
 use pyo3::Python;
 use log::info;
 
-pub(crate) fn read_json(file_path: &str) -> Result<Value, ModelError> {
+pub fn read_json(file_path: &str) -> Result<Value, ModelError> {
   match File::open(file_path) {
     Ok(mut file) => {
       let mut contents = String::new();
@@ -21,7 +21,7 @@ pub(crate) fn read_json(file_path: &str) -> Result<Value, ModelError> {
   }
 }
 
-pub(crate) fn write_json(file_path: &str, json_str: &str) -> Result<(), ModelError> {
+pub fn write_json(file_path: &str, json_str: &str) -> Result<(), ModelError> {
   match File::create(file_path) {
     Ok(mut file) => {
       match file.write(json_str.as_bytes()) {

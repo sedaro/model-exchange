@@ -1,12 +1,5 @@
 /*
 TODO:
-xlwings ctrl + x things is really annoying.  It has stopped working and I can't explain why breaking out the exchange test caused things to start failing again.
-0.5. Interaction between inputs and outputs of the exchange as well as individual stages of the exchange are messy and unintuitive.  
-Need to clean this up and document it. Ideally we would use this same interface for customization by end users.
-0. Slow to query the API during translation.  Could parallelize but also, we do things like read to refresh the model before a translation
-which seems unnecessary.  Why are we doing this?  Can this be handled differently when no a local file?
-Ideally the exchange would write/read to the local sedaroml file and then a parallel thread would reconcile the "foreign" model
-This approach is key for cosimulation where models are changing frequently.  Need to be mindful of conflicts though.
 2. Try in cosimulation (via adaptation of the custom watcher for cosim I guess?)
 3. Implement exchange lock (locks the entire exchange while a translation is in progress and is awaitable from things like tests)
 4. Handle conflict resolutions:
@@ -20,6 +13,10 @@ This approach is key for cosimulation where models are changing frequently.  Nee
 0. Colors to printing interface
 0. How to handle changes that occurred while exchange wasn't running?
 */
+
+// Docs content
+// Ideally the exchange would write/read to the local sedaroml file and then a parallel thread would reconcile the "foreign" model
+// This approach is key for cosimulation where models are changing frequently.  Need to be mindful of conflicts though.
 
 // Can run virtually in a different dir maybe or perhaps with recovery we don't care 
 // Potentially need to run the operation array in reverse when performing a reverse translation.  Need to think about this more.  Order of operations thing
@@ -74,21 +71,24 @@ use modex::translations::{Operation, Translation, TranslationResult};
 use modex::utils::python_signal_handler;
 use std::thread::sleep;
 use std::time::Duration;
+use modex::utils::read_json;
 
 
 #[tokio::main]
 async fn main() {
   init_logger().expect("Failed to initialize logger.");
   
-  let excel = Excel::new("test.xlsx", "test.xlsx");
+  let secrets = read_json("secrets.json").expect("Failed to read secrets.json");
+  let api_key = secrets.get("ALPHA").unwrap().as_str().unwrap();
+
+  let excel = Excel::new("test.xlsx".into(), "test.xlsx".into());
   let sedaro = Sedaro::new(
-    "spacecraft.json", 
-    "https://api.astage.sedaro.com", 
-    "PNdldNPBmJ2qRcYlBFCZnJ",
-    SedaroCredentials::ApiKey("NXLFwnrS7LRHX36oIsFW-.uR_2HGUyO9YVrKnTsT1m_9qV5728TxpTFNna22dchdEnS2ZWD5WgzcLBnj4ufosex6ovG1BNfrZIldHrI68pWg".into()), // alpha
-    // SedaroCredentials::ApiKey("NTH7518Ucq11BW7mEdxAF.1dSD4JZltUZROLtkxUS_nSnXxZ_NrrkR_kole1rswPG3A6gZW64iVSXfZQQg1c6nG0HwbS1dxXlovfxvdV5wOQ".into()), // prod
+    "Wildfire".into(),
+    "https://api.astage.sedaro.com".into(),
+    "PNdldNPBmJ2qRcYlBFCZnJ".into(),
+    SedaroCredentials::ApiKey(api_key.to_string()),
   );
-  let test = SedaroML::new("test.json", "test.json");
+  let test = SedaroML::new("test.json".into(), "test.json".into());
 
   let excel_to_sedaroml = Operation {
     name: Some("-".into()),
@@ -97,7 +97,6 @@ async fn main() {
       let filter = HashMap::from([("name".to_string(), Value::String("battery_esr".into()))]);
       let battery_esr_name = from.get_first_block_where(&filter).expect("Block matching filter expression not found.");
       let esr = battery_esr_name.get("value").unwrap().as_f64().unwrap();
-      
       to.block_by_id_mut("NT0USZZSc9cZAmWJbClN-").expect("Block not found").insert("esr".to_string(), esr.into());
       Ok(TranslationResult::Changed)
     },

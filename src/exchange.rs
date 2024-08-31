@@ -12,6 +12,8 @@ use notify_debouncer_mini::{
 use std::sync::{Arc, Mutex};
 use std::{panic, thread};
 use log::{info, error, debug};
+use crate::commands::{NodeCommands, NodeResponses};
+use crate::model::sedaroml::{read_model, write_model};
 use crate::watchers::traits::Watcher;
 use crate::watchers::WatcherType;
 use crate::change_queue::{ChangeQueue, QueuedSet};
@@ -21,7 +23,7 @@ use crate::utils::python_signal_handler;
 
 pub struct Exchange {
   change_queue: ChangeQueue,
-  models: Arc<Mutex<HashMap<String, Arc<Mutex<dyn Exchangeable + Sync + Send>>>>>,
+  nodes: Arc<Mutex<HashMap<String, Arc<Mutex<dyn Exchangeable + Sync + Send>>>>>,
   translation_thread: thread::JoinHandle<()>,
   watchers: Vec<Debouncer<FsEventWatcher>>,
 }
@@ -29,9 +31,9 @@ impl Exchange {
   pub fn new(translations: Vec<Translation>) -> Exchange {
     info!("Exchange is in startup...");
     let mut pairs = vec![];
-    let models = Arc::new(Mutex::new(HashMap::new()));
-    let models_clone = models.clone();
-    let mut models = models.lock().unwrap();
+    let nodes = Arc::new(Mutex::new(HashMap::new()));
+    let nodes_clone_for_constructor = nodes.clone();
+    let mut nodes = nodes.lock().unwrap();
     let mut translations_index = HashMap::new();
     let change_queue = Arc::new(Mutex::new(QueuedSet::new()));
     let change_queue_clone = change_queue.clone();
@@ -50,8 +52,8 @@ impl Exchange {
       pair.sort_unstable();
       let from_iden = from.identifier().clone();
       let to_iden = to.identifier().clone();
-      models.insert(from_iden.clone(), translation.from);
-      models.insert(to_iden.clone(), translation.to);
+      nodes.insert(from_iden.clone(), translation.from);
+      nodes.insert(to_iden.clone(), translation.to);
       if pairs.contains(&pair) {
         panic!("Duplicate translation pair: {}, {}", from_iden, to_iden);
       }
@@ -77,47 +79,28 @@ impl Exchange {
       pairs.push(pair);
     }
 
+    // Start all nodes and read in their representations
+    for node in nodes.values() {
+      let mut node = node.lock().unwrap();
+      match node.tx_to_node_blocking(NodeCommands::Start) {
+        NodeResponses::Started => {},
+        _ => { panic!("Failed to start node: {}", node.identifier()) }
+      }
+      node.refresh_representation();
+    }
+
     // Bind watchers for models
     let mut watchers = vec![];
     let queue = change_queue;
-    for model in models.values_mut() {
-      let mut model = model.lock().unwrap();
-      let iden = model.identifier().clone();
-      let queue_clone = queue.clone();
-      let queue = queue.clone();
-      match model.watcher_mut() {
-        WatcherType::FileWatcher(ref mut watcher) => {
-          let debouncer = setup_file_watcher(iden.to_string(), watcher.filename.to_string(), queue_clone.clone());
-          watcher.bind(queue_clone);
-          watchers.push(debouncer);
-        },
-        WatcherType::ExcelWatcher(ref mut watcher) => {
-          let debouncer = setup_file_watcher(iden.to_string(), watcher.excel_filename.to_string(), queue_clone.clone());
-          watcher.bind(queue_clone);
-          watchers.push(debouncer);
-        },
-        WatcherType::CustomWatcher(ref mut watcher) => {
-          watcher.bind(queue_clone);
-          let watch_fn = watcher.watch_fn.clone();
-          let interval = watcher.interval.clone();
-          thread::spawn(move || {
-            loop {
-              let result = watch_fn().unwrap_or_else(
-                |e| panic!("{}: Custom watcher failed: {:?}", iden, e)
-              );
-              if result.changed {
-                queue.lock().unwrap().enqueue(iden.clone());
-              }
-              sleep(interval);
-            }
-          });
-        },
-      }
+    for model in nodes.values_mut() {
+      let model = model.lock().unwrap();
+      let debouncer = setup_file_watcher(model.identifier(), model.sedaroml_filename(), queue.clone());
+      watchers.push(debouncer);
     }
 
-    let temp = models.clone();
+    let nodes_clone = nodes.clone();
     let handler = thread::spawn(move || {
-      let mut models = temp;
+      let mut nodes = nodes_clone;
       let mut visited = HashSet::new();
       loop {
         let queue = queue.clone();
@@ -129,13 +112,13 @@ impl Exchange {
           info!("Detected change: {}", change);
           visited.insert(change.clone());
           let translation = translations_index.get(&change).unwrap();
-          let from = models.get(&change).unwrap().clone();
+          let from = nodes.get(&change).unwrap().clone();
           let mut from = from.lock().unwrap();
 
           // if !translation.is_empty() { // Optimization
           //  from.read(); // Refresh the model from disk
           // }
-          from.read(); // Refresh the model from disk
+          from.refresh_representation(); // Refresh the model from disk
 
           for (to_iden, operations) in translation { // TODO: Make this order deterministic
             if visited.contains(&to_iden.clone()) {
@@ -143,7 +126,7 @@ impl Exchange {
               continue;
             }
 
-            let to = models.get_mut(&to_iden.clone()).unwrap().clone();
+            let to = nodes.get_mut(&to_iden.clone()).unwrap().clone();
             let mut to = to.lock().unwrap();
             let mut changed = false;
             for operation in operations {
@@ -186,20 +169,22 @@ impl Exchange {
             // Note that its important that a translation into a node only ever happen from one other node in a given round
             // not from > 1.  
             if changed { 
-              to.write();
+              write_model(&to.sedaroml_filename(), &to.representation()).unwrap_or_else(
+                |e| panic!("Failed to write model to file: {}: {:?}", to.sedaroml_filename(), e)
+              );
+              to.tx_to_node(NodeCommands::Changed);
             } else {
               handle_unchanged(&to_iden, &mut visited, &translations_index); // Recursively add all deps to visited
             }
-            to.done();
+            to.tx_to_node(NodeCommands::Done);
           }
 
           // If every node has been visited, translation round is complete
-          if visited.len() == models.len() {
+          if visited.len() == nodes.len() {
             info!("Translation complete.");
             visited.clear();
           }
         } else {
-          python_signal_handler().unwrap();
           sleep(Duration::from_millis(10));
         }
       }
@@ -207,7 +192,7 @@ impl Exchange {
     info!("Ready.");
     Exchange {
       change_queue: change_queue_clone,
-      models: models_clone,
+      nodes: nodes_clone_for_constructor,
       translation_thread: handler,
       watchers,
     }
@@ -215,21 +200,9 @@ impl Exchange {
   pub fn wait(self) {
     self.translation_thread.join().unwrap();
   }
-  pub fn trigger_watch_for_model(&self, iden: &str) {
-    let models = self.models.lock().unwrap();
-    let model = models.get(iden).unwrap().clone();
-    let mut model = model.lock().unwrap();
-    match model.watcher_mut() {
-      WatcherType::FileWatcher(watcher) => {
-        watcher.trigger();
-      },
-      WatcherType::ExcelWatcher(watcher) => {
-        watcher.trigger();
-      },
-      WatcherType::CustomWatcher(watcher) => {
-        watcher.trigger();
-      },
-    }
+  pub fn trigger_watch_for_model(&self, iden: String) {
+    // TODO: Validate that iden is a valid model identifier
+    self.change_queue.lock().unwrap().enqueue(iden.to_string());
   }
 }
 

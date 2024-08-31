@@ -8,3 +8,4 @@ pub mod nodes;
 pub mod translations;
 pub mod exchange;
 mod tests;
+pub mod commands;
