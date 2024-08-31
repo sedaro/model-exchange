@@ -13,13 +13,10 @@ use std::sync::{Arc, Mutex};
 use std::{panic, thread};
 use log::{info, error, debug};
 use crate::commands::{NodeCommands, NodeResponses};
-use crate::model::sedaroml::{read_model, write_model};
-use crate::watchers::traits::Watcher;
-use crate::watchers::WatcherType;
+use crate::model::sedaroml::write_model;
 use crate::change_queue::{ChangeQueue, QueuedSet};
 use crate::translations::{Translation, OperationFunction, TranslationResult};
 use crate::nodes::traits::Exchangeable;
-use crate::utils::python_signal_handler;
 
 pub struct Exchange {
   change_queue: ChangeQueue,

@@ -68,9 +68,6 @@ use modex::nodes::sedaro::{Sedaro, SedaroCredentials};
 use modex::nodes::excel::Excel;
 use modex::exchange::Exchange;
 use modex::translations::{Operation, Translation, TranslationResult};
-use modex::utils::python_signal_handler;
-use std::thread::sleep;
-use std::time::Duration;
 use modex::utils::read_json;
 
 
@@ -119,7 +116,6 @@ async fn main() {
       let filter = HashMap::from([("name".to_string(), Value::String("battery_esr".into()))]);
       let battery_esr_name = from.get_first_block_where(&filter).expect("Block matching filter expression not found.");
       let esr = battery_esr_name.get("value").unwrap().as_f64().unwrap();
-      println!("OTHER: {}", esr);
       Ok(TranslationResult::Unchanged)
     },
     reverse: |from: &Model, to: &mut Model| {
@@ -139,9 +135,5 @@ async fn main() {
   };
 
   let exchange = Exchange::new(vec![t, tt]);
-  // loop { // This is a hack to get the xlwings process to terminate on ctrl+c
-  //   python_signal_handler().unwrap();
-  //   sleep(Duration::from_millis(100));
-  // }
   exchange.wait();
 }

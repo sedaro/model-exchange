@@ -1,8 +1,6 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use crate::model::sedaroml::{Block, Model};
-use crate::watchers::WatcherType;
-use crate::watchers::custom::{CustomWatcher, CustomWatcherFn, CustomWatcherEvent};
 use crate::model::sedaroml::{write_model, read_model};
 use crate::nodes::traits::Exchangeable;
 use log::{debug, info};
@@ -10,7 +8,6 @@ use std::time::Duration;
 use ureq;
 use crate::metadata::{read_metadata, write_metadata};
 use std::borrow::{Borrow, BorrowMut};
-use crate::watchers::traits::Watcher;
 use std::sync::mpsc;
 use std::thread;
 use crate::commands::{NodeCommands, NodeResponses};
@@ -77,7 +74,9 @@ impl Sedaro {
                   |e| panic!("{}: Failed to read SedaroML from file: {:?}", identifier_clone, e)
                 );
                 let date_modified = put_sedaro_model(&url, &auth_header, &model);
-                write_metadata(&metadata_filename, &date_modified);
+                write_metadata(&metadata_filename, &date_modified).unwrap_or_else(
+                  |e| panic!("{}: Failed to write metadata to file: {:?}", identifier_clone, e)
+                );
               },
               NodeCommands::Done => { debug!("{}: Done", identifier_clone) },
             }
@@ -93,8 +92,12 @@ impl Sedaro {
           );
           if metadata.date_modified != date_modified {
             info!("{}: Model has changed. Updating metadata...", identifier_clone);
-            write_metadata(&metadata_filename, &date_modified);
-            write_model(&sedaroml_filename_clone, &model);
+            write_metadata(&metadata_filename, &date_modified).unwrap_or_else(
+              |e| panic!("{}: Failed to write metadata to file: {:?}", identifier_clone, e)
+            );
+            write_model(&sedaroml_filename_clone, &model).unwrap_or_else(
+              |e| panic!("{}: Failed to write SedaroML to file: {:?}", identifier_clone, e)
+            );
           }
         }
       }

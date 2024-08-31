@@ -1,15 +1,13 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use crate::model::sedaroml::Model;
-use crate::watchers::WatcherType;
-use crate::watchers::filesystem::FileWatcher;
 use super::traits::Exchangeable;
-use crate::model::sedaroml::{read_model, write_model};
+use crate::model::sedaroml::read_model;
 use std::borrow::{Borrow, BorrowMut};
 use std::sync::mpsc;
 use crate::commands::{NodeCommands, NodeResponses};
 use std::thread;
-use log::{debug, info};
+use log::debug;
 
 #[derive(Clone)]
 pub struct SedaroML {

@@ -1,8 +1,7 @@
-use crate::watchers::WatcherType;
 use crate::model::sedaroml::Model;
 use crate::commands::NodeCommands;
 use crate::commands::NodeResponses;
-use std::sync::mpsc::{SendError, Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
 pub trait Exchangeable {
