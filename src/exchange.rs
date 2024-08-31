@@ -20,9 +20,9 @@ use crate::nodes::traits::Exchangeable;
 
 pub struct Exchange {
   change_queue: ChangeQueue,
-  nodes: Arc<Mutex<HashMap<String, Arc<Mutex<dyn Exchangeable + Sync + Send>>>>>,
+  pub nodes: Arc<Mutex<HashMap<String, Arc<Mutex<dyn Exchangeable + Sync + Send>>>>>,
   translation_thread: thread::JoinHandle<()>,
-  watchers: Vec<Debouncer<FsEventWatcher>>,
+  pub watchers: Vec<Debouncer<FsEventWatcher>>,
 }
 impl Exchange {
   pub fn new(translations: Vec<Translation>) -> Exchange {
@@ -34,26 +34,48 @@ impl Exchange {
     let mut translations_index = HashMap::new();
     let change_queue = Arc::new(Mutex::new(QueuedSet::new()));
     let change_queue_clone = change_queue.clone();
+    let mut filenames = HashSet::new();
 
-    // Check for no duplicate translation pairs via unique model identifiers
+    // Validation and setup
     for translation in translations {
-      let from = translation.from.clone();
+      if Arc::ptr_eq(&translation.from, &translation.to) { // This must happen before any locking to prvent deadlock
+        let from = translation.from.clone().lock().unwrap().identifier().clone();
+        let to = translation.to.clone().lock().unwrap().identifier().clone();
+        panic!("Translation `from` and `to` models must be different: Offending model identifiers: `{}` & `{}`", from, to);
+      }
+      let from = translation.from.clone(); 
       let from = from.lock().unwrap();
       let to = translation.to.clone();
       let to = to.lock().unwrap();
       debug!("Registering translation: from: {}, to: {}", from.identifier(), to.identifier());
       if from.identifier() == to.identifier() {
-        panic!("Translation from and to models must be different: `{}` == `{}`", from.identifier(), to.identifier());
+        panic!("Translation `from` and `to` models must have different identifiers: `{}` == `{}`", from.identifier(), to.identifier());
       }
       let mut pair = vec![from.identifier().clone(), to.identifier().clone()];
       pair.sort_unstable();
       let from_iden = from.identifier().clone();
       let to_iden = to.identifier().clone();
+      if nodes.contains_key(&from_iden) && !Arc::ptr_eq(nodes.get(&from_iden).unwrap(), &translation.from) {
+        panic!("Duplicate model identifier detected: `{}`", from_iden);
+      }
+      if nodes.contains_key(&to_iden) && !Arc::ptr_eq(nodes.get(&to_iden).unwrap(), &translation.to) {
+        panic!("Duplicate model identifier detected: `{}`", to_iden);
+      }
+      if !nodes.contains_key(&from_iden) && filenames.contains(&from.sedaroml_filename()) {
+        panic!("Duplicate filename detected: `{}`", from.sedaroml_filename());
+      }
+      filenames.insert(from.sedaroml_filename().clone());
+      if !nodes.contains_key(&to_iden) && filenames.contains(&to.sedaroml_filename()) {
+        panic!("Duplicate filename detected: `{}`", to.sedaroml_filename());
+      }
+      filenames.insert(to.sedaroml_filename().clone());
       nodes.insert(from_iden.clone(), translation.from);
       nodes.insert(to_iden.clone(), translation.to);
       if pairs.contains(&pair) {
-        panic!("Duplicate translation pair: {}, {}", from_iden, to_iden);
+        panic!("Duplicate translation pair detected: From: `{}`, To: `{}`", from_iden, to_iden);
       }
+
+      // TODO: Cycle detection
 
       if !translations_index.contains_key(&from_iden) {
         translations_index.insert(from_iden.clone(), HashMap::new());

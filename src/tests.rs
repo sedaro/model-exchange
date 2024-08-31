@@ -102,4 +102,41 @@ mod tests {
     assert!(*e.lock().unwrap().rep().blocks.get("i").unwrap() == Block::from_iter([("v".into(), Value::Number(100.into()))]));
     println!("All tests passed!");
   }
+
+  #[test]
+  #[should_panic(expected = "`a` == `a`")]
+  fn test_exchange_validation_iden_uniqueness() {
+    let a = SedaroML::new("a".into(), "a.txt".into());
+    let b = SedaroML::new("a".into(), "b.txt".into());
+    let t_a = Translation { from: a, to: b, operations: vec![] };
+    Exchange::new(vec![t_a]);
+  }
+
+  #[test]
+  #[should_panic(expected = "`a` & `a`")]
+  fn test_exchange_validation_recursive_nodes() {
+    let a = SedaroML::new("a".into(), "a.txt".into());
+    let t_a = Translation { from: a.clone(), to: a, operations: vec![] };
+    Exchange::new(vec![t_a]);
+  }
+
+  #[test]
+  #[should_panic(expected = "Duplicate model identifier detected: `b`")]
+  fn test_exchange_validation_same_iden_multiple_nodes() {
+    let a = SedaroML::new("a".into(), "a.txt".into());
+    let b = SedaroML::new("b".into(), "b.txt".into());
+    let c = SedaroML::new("b".into(), "c.txt".into());
+    let t_a = Translation { from: a.clone(), to: b, operations: vec![] };
+    let t_b = Translation { from: a, to: c, operations: vec![] };
+    Exchange::new(vec![t_a, t_b]);
+  }
+
+  #[test]
+  #[should_panic(expected = "Duplicate filename detected: `a.txt`")]
+  fn test_exchange_validation_duplicate_filenames() {
+    let a = SedaroML::new("a".into(), "a.txt".into());
+    let b = SedaroML::new("b".into(), "a.txt".into());
+    let t_a = Translation { from: a, to: b, operations: vec![] };
+    Exchange::new(vec![t_a]);
+  }
 }

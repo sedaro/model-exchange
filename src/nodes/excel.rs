@@ -19,7 +19,7 @@ use notify_debouncer_mini::{
 #[derive(Clone)]
 pub struct Excel {
   identifier: String,
-  excel_filename: String,
+  pub excel_filename: String,
   sedaroml_filename: String,
   rep: Option<Model>,
   tx: mpsc::Sender<NodeCommands>,

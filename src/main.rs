@@ -27,8 +27,6 @@ TODO:
 // Double triggers (trigger comes in while translation is in progress) for same model and differen model in change (causing a conflict in this case)
 // user error in a translation function
 
-// A need to periodically poll (http or something local, shouldn't matter) for changes via async thread
-
 // Each node should implement (optionally?) a lock that prevents races and/or collissions
 // This lock file should also potentially enable detecting when things are deleted/added instead of just changed but 
 // need to think through this usecase more
