@@ -111,14 +111,10 @@ async fn main() {
 
   let other = Operation {
     name: Some("other".into()),
-    forward: |from: &Model, to: &mut Model| {
-      // get_first_block_where!(name='spacecraft_dry_mass').value as Mass.g -> Spacecraft.dryMass
-      let filter = HashMap::from([("name".to_string(), Value::String("battery_esr".into()))]);
-      let battery_esr_name = from.get_first_block_where(&filter).expect("Block matching filter expression not found.");
-      let esr = battery_esr_name.get("value").unwrap().as_f64().unwrap();
+    forward: |_, _| {
       Ok(TranslationResult::Unchanged)
     },
-    reverse: |from: &Model, to: &mut Model| {
+    reverse: |_, _| {
       Ok(TranslationResult::Unchanged)
     },
   };
