@@ -115,10 +115,9 @@ impl Exchange {
           let from = nodes.get(&change).unwrap().clone();
           let mut from = from.lock().unwrap();
 
-          // if !translation.is_empty() { // Optimization
-          //  from.read(); // Refresh the model from disk
-          // }
-          from.refresh_representation(); // Refresh the model from disk
+          if !translation.is_empty() { // Optimization
+            from.refresh_representation(); // Refresh the model from disk
+          }
 
           for (to_iden, operations) in translation { // TODO: Make this order deterministic
             if visited.contains(&to_iden.clone()) {
