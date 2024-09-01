@@ -17,6 +17,8 @@ use crate::model::sedaroml::write_model;
 use crate::change_queue::{ChangeQueue, QueuedSet};
 use crate::translations::{Translation, OperationFunction, TranslationResult};
 use crate::nodes::traits::Exchangeable;
+use colored::Colorize;
+use std::time::Instant;
 
 pub struct Exchange {
   change_queue: ChangeQueue,
@@ -26,6 +28,7 @@ pub struct Exchange {
 }
 impl Exchange {
   pub fn new(translations: Vec<Translation>) -> Exchange {
+    let startup_time = Instant::now();
     info!("Exchange is in startup...");
     let mut pairs = vec![];
     let nodes = Arc::new(Mutex::new(HashMap::new()));
@@ -120,16 +123,21 @@ impl Exchange {
     let nodes_clone = nodes.clone();
     let handler = thread::spawn(move || {
       let mut nodes = nodes_clone;
-      let mut visited = HashSet::new();
+      let mut visited_nodes = HashSet::new();
+      let mut changed_nodes = HashSet::new();
+      let mut round_time: Option<Instant> = None;
       loop {
         let queue = queue.clone();
         let mut queue = queue.lock().unwrap();
         let change = queue.dequeue();
         drop(queue); // Release lock so other threads can enqueue
         if let Some(change) = change {
+          if round_time.is_none() {
+            round_time = Some(Instant::now());
+          }
           let change = change.clone();
-          info!("Detected change: {}", change);
-          visited.insert(change.clone());
+          info!("{} {}", "Change:".cyan(), change);
+          visited_nodes.insert(change.clone());
           let translation = translations_index.get(&change).unwrap();
           let from = nodes.get(&change).unwrap().clone();
           let mut from = from.lock().unwrap();
@@ -139,8 +147,8 @@ impl Exchange {
           }
 
           for (to_iden, operations) in translation { // TODO: Make this order deterministic
-            if visited.contains(&to_iden.clone()) {
-              debug!("Already visited: {}. Skipping...", to_iden);
+            if visited_nodes.contains(&to_iden.clone()) {
+              info!("  No dependent translations remaining.");
               continue;
             }
 
@@ -153,14 +161,15 @@ impl Exchange {
                   match op(&from.rep(), &mut to.rep_mut()) {
                     Ok(translation_status) => {
                       let arrow = match op_name {
-                        Some(op_name) => format!("-- '{}' -->", op_name),
+                        Some(op_name) => format!("--({})-->", op_name),
                         None => "-->".into(),
                       };
-                      info!("Translation: '{}' {} '{}': {:?}", from.identifier(), arrow, to.identifier(), translation_status);
+                      let mut result_str = "Changed".green();
                       match translation_status {
                         TranslationResult::Changed => { changed = true },
-                        TranslationResult::Unchanged => {},
+                        TranslationResult::Unchanged => { result_str = "Unchanged".yellow() },
                       }
+                      info!("  Translation: {} {} {}: {}", from.identifier(), arrow, to.identifier(), result_str);
                     },
                     Err(e) => panic!("Translation {} -> {} failed: {:?}", from.identifier(), to.identifier(), e),
                   }
@@ -169,14 +178,15 @@ impl Exchange {
                   match op(&from.rep(), &mut to.rep_mut()) {
                     Ok(translation_status) => {
                       let arrow = match op_name {
-                        Some(op_name) => format!("-- '{}'^-1 -->", op_name),
+                        Some(op_name) => format!("--({})^-1-->", op_name),
                         None => "-->".into(),
                       };
-                      info!("Translation: '{}' {} '{}': {:?}", from.identifier(), arrow, to.identifier(), translation_status);
+                      let mut result_str = "Changed".green();
                       match translation_status {
                         TranslationResult::Changed => { changed = true },
-                        TranslationResult::Unchanged => {},
+                        TranslationResult::Unchanged => { result_str = "Unchanged".yellow() },
                       }
+                      info!("  Translation: {} {} {}: {}", from.identifier(), arrow, to.identifier(), result_str);
                     },
                     Err(e) => panic!("Translation {} -> {} failed: {:?}", from.identifier(), to.identifier(), e),
                   }
@@ -187,27 +197,53 @@ impl Exchange {
             // Note that its important that a translation into a node only ever happen from one other node in a given round
             // not from > 1.  
             if changed { 
+              changed_nodes.insert(to_iden.clone());
               write_model(&to.sedaroml_filename(), &to.rep()).unwrap_or_else(
                 |e| panic!("Failed to write model to file: {}: {:?}", to.sedaroml_filename(), e)
               );
               to.tx_to_node(NodeCommands::Changed);
             } else {
-              handle_unchanged(&to_iden, &mut visited, &translations_index); // Recursively add all deps to visited
+              handle_unchanged(&to_iden, &mut visited_nodes, &translations_index); // Recursively add all deps to visited
             }
             to.tx_to_node(NodeCommands::Done);
           }
 
+          // Drop locked model (so it can be locked again below if need by during round close-out)
+          drop(from);
+
           // If every node has been visited, translation round is complete
-          if visited.len() == nodes.len() {
-            info!("Translation complete.");
-            visited.clear();
+          if visited_nodes.len() == nodes.len() {
+            info!("Waiting for node side-effects to complete...");
+            let mut heard_from = HashSet::new();
+            let changed_nodes_locked = changed_nodes.iter().map(|iden| nodes.get(iden).unwrap().lock().unwrap()).collect::<Vec<_>>();
+            while heard_from.len() < changed_nodes.len() {
+              for node in &changed_nodes_locked {
+                if !heard_from.contains(&node.identifier()) {
+                  match node.rx_from_node_timeout(Duration::from_millis(10)) {
+                    Ok(NodeResponses::Done(t)) => { 
+                      heard_from.insert(node.identifier().clone());
+                      info!("  {}: {} {:.2}s", node.identifier(), "Done".green(), t.as_secs_f64()) 
+                    },
+                    _ => {},
+                  }
+                }
+              }
+            }
+            let elapsed = match round_time {
+              Some(round_time) => format!("{:.2}s", round_time.elapsed().as_secs_f64()),
+              None => "".into(),
+            };
+            info!("{} {}", "Translation complete.".purple(), elapsed);
+            round_time = None;
+            visited_nodes.clear();
+            changed_nodes.clear();
           }
         } else {
           sleep(Duration::from_millis(10));
         }
       }
     });
-    info!("Ready.");
+    info!("{} {:.2}s", "Ready.".green(), startup_time.elapsed().as_secs_f64());
     Exchange {
       change_queue: change_queue_clone,
       nodes: nodes_clone_for_constructor,

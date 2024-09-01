@@ -111,7 +111,7 @@ async fn main() {
       Ok(TranslationResult::Unchanged)
     },
     reverse: |_, _| {
-      Ok(TranslationResult::Unchanged)
+      Ok(TranslationResult::Changed)
     },
   };
 

@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 #[derive(Debug)]
 pub enum NodeCommands {
     /// Signals a Node to start
@@ -16,4 +18,6 @@ pub enum NodeResponses {
     Started,
     /// Signal to acknowledge that a Node has stopped
     Stopped,
+    // Signals the Exchange that the Node has completed all side-effects to a `Changed` command (includes Duration to complete all side-effects)
+    Done(Duration),
 }

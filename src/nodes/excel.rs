@@ -3,7 +3,7 @@ use crate::model::sedaroml::{Model, read_model};
 use crate::nodes::traits::Exchangeable;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use pyo3::prelude::*;
 use std::borrow::{Borrow, BorrowMut};
 use crate::utils::python_signal_handler;
@@ -49,15 +49,15 @@ impl Excel {
               |e| panic!("{}: Failed to convert Excel to SedaroML: {}", _identifier, e)
             );
           },
-          Err(e) => error!("watch error: {:?}", e),
+          Err(e) => error!("Watch error: {:?}", e),
         }
       }).unwrap_or_else(|_| panic!("Failed to create excel watcher"));
       let watcher = excel_watcher.watcher();
-      println!("setup watcher for {}", &excel_filename);
 
       loop {
         match rx_in_node.recv_timeout(Duration::from_millis(100)) {
           Ok(command) => {
+            debug!("{}: Received command: {:?}", identifier_clone, command);
             match command {
               NodeCommands::Start => {
                 if !Path::exists(Path::new(&sedaroml_filename_clone)) {
@@ -72,11 +72,13 @@ impl Excel {
               },
               NodeCommands::Stop => { tx_to_exchange.send(NodeResponses::Stopped).unwrap() },
               NodeCommands::Changed => {
+                let t = Instant::now();
                 sedaroml_to_excel(&sedaroml_filename_clone, &excel_filename).unwrap_or_else(
                   |e| panic!("{}: Failed to convert SedaroML to Excel: {}", identifier_clone, e)
                 );
+                tx_to_exchange.send(NodeResponses::Done(t.elapsed())).unwrap();
               },
-              NodeCommands::Done => { debug!("{}: Done", identifier_clone) },
+              NodeCommands::Done => {},
             }
           },
           Err(_) => {},

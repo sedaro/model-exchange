@@ -4,7 +4,7 @@ use crate::model::sedaroml::{Block, Model};
 use crate::model::sedaroml::{write_model, read_model};
 use crate::nodes::traits::Exchangeable;
 use log::{debug, info};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use ureq;
 use crate::metadata::{read_metadata, write_metadata};
 use std::borrow::{Borrow, BorrowMut};
@@ -49,6 +49,7 @@ impl Sedaro {
       loop {
         match rx_in_node.recv_timeout(Duration::from_millis(100)) {
           Ok(command) => {
+            debug!("{}: Received command: {:?}", identifier_clone, command);
             match command {
               NodeCommands::Start => { 
                 if !Path::exists(Path::new(&sedaroml_filename_clone)) || !Path::exists(Path::new(&metadata_filename)) {
@@ -69,6 +70,7 @@ impl Sedaro {
                 tx_to_exchange.send(NodeResponses::Stopped).unwrap();
               },
               NodeCommands::Changed => {
+                let t = Instant::now();
                 let url = format!("{}/template", &url);
                 let model = read_model(&sedaroml_filename_clone).unwrap_or_else(
                   |e| panic!("{}: Failed to read SedaroML from file: {:?}", identifier_clone, e)
@@ -77,8 +79,9 @@ impl Sedaro {
                 write_metadata(&metadata_filename, &date_modified).unwrap_or_else(
                   |e| panic!("{}: Failed to write metadata to file: {:?}", identifier_clone, e)
                 );
+                tx_to_exchange.send(NodeResponses::Done(t.elapsed())).unwrap();
               },
-              NodeCommands::Done => { debug!("{}: Done", identifier_clone) },
+              NodeCommands::Done => {},
             }
           },
           Err(_) => {},

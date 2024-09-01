@@ -28,11 +28,12 @@ impl SedaroML {
       loop {
         match rx_in_node.recv_timeout(Duration::from_millis(100)) {
           Ok(command) => {
+            debug!("{}: Received command: {:?}", identifier_clone, command);
             match command {
               NodeCommands::Start => { tx_to_exchange.send(NodeResponses::Started).unwrap() },
               NodeCommands::Stop => { tx_to_exchange.send(NodeResponses::Stopped).unwrap() },
-              NodeCommands::Changed => {},
-              NodeCommands::Done => { debug!("{}: Done", identifier_clone) },
+              NodeCommands::Changed => { tx_to_exchange.send(NodeResponses::Done(Duration::from_secs(0))).unwrap() },
+              NodeCommands::Done => {},
             }
           },
           Err(_) => {},

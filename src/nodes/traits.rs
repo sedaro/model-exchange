@@ -1,8 +1,9 @@
 use crate::model::sedaroml::Model;
 use crate::commands::NodeCommands;
 use crate::commands::NodeResponses;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 pub trait Exchangeable {
   fn identifier(&self) -> String;
@@ -21,5 +22,6 @@ pub trait Exchangeable {
     self.rx_from_node()
   }
   fn rx_from_node(&self) -> NodeResponses { self.rx().lock().unwrap().recv().unwrap() }
+  fn rx_from_node_timeout(&self, timeout: Duration) -> Result<NodeResponses, RecvTimeoutError> { self.rx().lock().unwrap().recv_timeout(timeout) }
   fn refresh_rep(&mut self);
 }
