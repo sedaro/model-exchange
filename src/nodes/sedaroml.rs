@@ -41,7 +41,7 @@ impl SedaroML {
       }
     });
 
-    let exchangeable: SedaroML = SedaroML {
+    let exchangeable = SedaroML {
       identifier: identifier.into(),
       filename: filename.into(),
       rep: None,

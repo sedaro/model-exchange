@@ -1,5 +1,7 @@
 /*
 TODO:
+0. Put things in the exchange that have dependencies but that aren't connected to other things in the exchange.  Do we allow for this?
+1. Docs (initially release as collision detection and resolution coming soon?)
 2. Try in cosimulation (via adaptation of the custom watcher for cosim I guess?)
 3. Implement exchange lock (locks the entire exchange while a translation is in progress and is awaitable from things like tests and conflict resolution)
 4. Handle conflict resolutions:
@@ -9,12 +11,12 @@ TODO:
 5. Satisfy remainder of Mosaic Warfare requirements: Web gui? REST API?
 6. Need to handle things like excel changing while the exchange isn't running, leaving a conflict between excel.xlsx and excel.json just that on start up, translations to excel.xlsx can't operate over the current state of excel.xlsx
 - How to handle changes that occurred while exchange wasn't running?
-0. Colors to printing interface
 */
 
 // Docs content
 // Ideally the exchange would write/read to the local sedaroml file and then a parallel thread would reconcile the "foreign" model
 // This approach is key for cosimulation where models are changing frequently.  Need to be mindful of conflicts though.
+// Idea it to build stable, maintainable, revisitable software that can perform mission critical model interoperability 
 
 // Can run virtually in a different dir maybe or perhaps with recovery we don't care 
 // Potentially need to run the operation array in reverse when performing a reverse translation.  Need to think about this more.  Order of operations thing
@@ -56,6 +58,7 @@ TODO:
 
 
 use std::collections::HashMap;
+use modex::nodes::cosimulation::{Cosimulation, SimulationJobId};
 use modex::nodes::sedaroml::SedaroML;
 use serde_json::Value;
 use modex::logging::init_logger;
@@ -73,12 +76,21 @@ async fn main() {
   
   let secrets = read_json("secrets.json").expect("Failed to read secrets.json");
   let api_key = secrets.get("ALPHA").unwrap().as_str().unwrap();
-
+  
   let excel = Excel::new("test.xlsx".into(), "test.xlsx".into());
   let sedaro = Sedaro::new(
     "Wildfire".into(),
     "https://api.astage.sedaro.com".into(),
     "PNdldNPBmJ2qRcYlBFCZnJ".into(),
+    SedaroCredentials::ApiKey(api_key.to_string()),
+  );
+  let api_key = secrets.get("PROD").unwrap().as_str().unwrap();
+  let cosim = Cosimulation::new(
+    "Wildfire Cosim".into(),
+    "https://api.sedaro.com".into(),
+    SimulationJobId::LatestForScenario("PMfpm2M4bJsztXDqBWs9gt".into()),
+    "NSghFfVT8ieam0ydeZGX-".into(),
+    "NZ2SHUkS95z1GtmMZ0CTk".into(),
     SedaroCredentials::ApiKey(api_key.to_string()),
   );
   let test = SedaroML::new("test.json".into(), "test.json".into());
@@ -105,6 +117,20 @@ async fn main() {
     },
   };
 
+  let excel_to_cosim = Operation {
+    name: Some("cosim".into()),
+    forward: |from: &Model, to: &mut Model| {
+      Ok(TranslationResult::Unchanged)
+    },
+    reverse: |from: &Model, to: &mut Model| {
+      let filter = HashMap::from([("name".to_string(), Value::String("battery_esr".into()))]);
+      let battery_esr_name = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
+      let v = serde_json::from_value(Value::String(serde_json::to_string(from.root.get("value").unwrap()).unwrap())).unwrap();
+      battery_esr_name.insert("value".to_string(), v);
+      Ok(TranslationResult::Changed)
+    },
+  };
+
   let other = Operation {
     name: Some("other".into()),
     forward: |_, _| {
@@ -125,7 +151,14 @@ async fn main() {
     to: test.clone(),
     operations: vec![other],
   };
+  // let exchange = Exchange::new(vec![t, tt]);
 
-  let exchange = Exchange::new(vec![t, tt]);
+  let translation_cosim = Translation {
+    from: excel.clone(),
+    to: cosim.clone(),
+    operations: vec![excel_to_cosim],
+  };
+
+  let exchange = Exchange::new(vec![translation_cosim]);
   exchange.wait();
 }

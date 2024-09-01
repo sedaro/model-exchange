@@ -94,7 +94,7 @@ impl Sedaro {
             |e| panic!("{}: Failed to read metadata from file: {:?}", identifier_clone, e)
           );
           if metadata.date_modified != date_modified {
-            info!("{}: Model has changed. Updating metadata...", identifier_clone);
+            debug!("{}: Remote model has changed. Updating metadata...", identifier_clone);
             write_metadata(&metadata_filename, &date_modified).unwrap_or_else(
               |e| panic!("{}: Failed to write metadata to file: {:?}", identifier_clone, e)
             );
@@ -106,7 +106,7 @@ impl Sedaro {
       }
     });
 
-    let exchangeable: Sedaro = Sedaro {
+    let exchangeable = Sedaro {
       identifier: identifier.into(),
       sedaroml_filename,
       rep: None,

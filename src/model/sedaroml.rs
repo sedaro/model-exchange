@@ -116,6 +116,10 @@ impl Model {
     }
     Err(ModelError::BlockNotFound(format!("No Blocks matching filter criteria were found.")))
   }
+
+  pub fn to_pretty_string(&self) -> String {
+    serde_json::to_string_pretty(&self).unwrap()
+  }
 }
 
 pub fn read_model(file_path: &str) -> Result<Model, ModelError> {
@@ -127,5 +131,5 @@ pub fn read_model(file_path: &str) -> Result<Model, ModelError> {
 }
 
 pub fn write_model(file_path: &str, model: &Model) -> Result<(), ModelError> {
-  write_json(file_path, &serde_json::to_string_pretty(&model).unwrap())
+  write_json(file_path, &model.to_pretty_string())
 }
