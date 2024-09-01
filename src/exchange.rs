@@ -213,18 +213,20 @@ impl Exchange {
 
           // If every node has been visited, translation round is complete
           if visited_nodes.len() == nodes.len() {
-            info!("Waiting for node side-effects to complete...");
-            let mut heard_from = HashSet::new();
-            let changed_nodes_locked = changed_nodes.iter().map(|iden| nodes.get(iden).unwrap().lock().unwrap()).collect::<Vec<_>>();
-            while heard_from.len() < changed_nodes.len() {
-              for node in &changed_nodes_locked {
-                if !heard_from.contains(&node.identifier()) {
-                  match node.rx_from_node_timeout(Duration::from_millis(10)) {
-                    Ok(NodeResponses::Done(t)) => { 
-                      heard_from.insert(node.identifier().clone());
-                      info!("  {}: {} {:.2}s", node.identifier(), "Done".green(), t.as_secs_f64()) 
-                    },
-                    _ => {},
+            if !changed_nodes.is_empty() {
+              info!("Waiting for node side-effects to complete...");
+              let mut heard_from = HashSet::new();
+              let changed_nodes_locked = changed_nodes.iter().map(|iden| nodes.get(iden).unwrap().lock().unwrap()).collect::<Vec<_>>();
+              while heard_from.len() < changed_nodes.len() {
+                for node in &changed_nodes_locked {
+                  if !heard_from.contains(&node.identifier()) {
+                    match node.rx_from_node_timeout(Duration::from_millis(10)) {
+                      Ok(NodeResponses::Done(t)) => { 
+                        heard_from.insert(node.identifier().clone());
+                        info!("  {}: {} {:.2}s", node.identifier(), "Done".green(), t.as_secs_f64()) 
+                      },
+                      _ => {},
+                    }
                   }
                 }
               }

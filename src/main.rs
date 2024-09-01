@@ -1,5 +1,7 @@
 /*
 TODO:
+
+00. For cosimulation, seems like there should maybe be two types of models?? (one for consume and one for produce)
 0. Put things in the exchange that have dependencies but that aren't connected to other things in the exchange.  Do we allow for this?
 1. Docs (initially release as collision detection and resolution coming soon?)
 2. Try in cosimulation (via adaptation of the custom watcher for cosim I guess?)
@@ -88,7 +90,7 @@ async fn main() {
   let cosim = Cosimulation::new(
     "Wildfire Cosim".into(),
     "https://api.sedaro.com".into(),
-    SimulationJobId::LatestForScenario("PMfpm2M4bJsztXDqBWs9gt".into()),
+    SimulationJobId::LatestForScenario("PNhrrFtnB5XYv2qJ8RcZzN".into()),
     "NSghFfVT8ieam0ydeZGX-".into(),
     "NZ2SHUkS95z1GtmMZ0CTk".into(),
     SedaroCredentials::ApiKey(api_key.to_string()),
@@ -120,14 +122,37 @@ async fn main() {
   let excel_to_cosim = Operation {
     name: Some("cosim".into()),
     forward: |from: &Model, to: &mut Model| {
-      Ok(TranslationResult::Unchanged)
+      let filter = HashMap::from([("name".to_string(), Value::String("attitude_x".into()))]);
+      let block = from.get_first_block_where(&filter).expect("Block matching filter expression not found.");
+      let x = block.get("value").unwrap().as_f64().unwrap();
+      let filter = HashMap::from([("name".to_string(), Value::String("attitude_y".into()))]);
+      let block = from.get_first_block_where(&filter).expect("Block matching filter expression not found.");
+      let y = block.get("value").unwrap().as_f64().unwrap();
+      let filter = HashMap::from([("name".to_string(), Value::String("attitude_z".into()))]);
+      let block = from.get_first_block_where(&filter).expect("Block matching filter expression not found.");
+      let z = block.get("value").unwrap().as_f64().unwrap();
+      let filter = HashMap::from([("name".to_string(), Value::String("attitude_w".into()))]);
+      let block = from.get_first_block_where(&filter).expect("Block matching filter expression not found.");
+      let w = block.get("value").unwrap().as_f64().unwrap();
+      to.root.insert("produced_value".to_string(), serde_json::json!([{"ndarray": vec![x, y, z, w]}]));
+      Ok(TranslationResult::Changed)
     },
     reverse: |from: &Model, to: &mut Model| {
-      let filter = HashMap::from([("name".to_string(), Value::String("battery_esr".into()))]);
-      let battery_esr_name = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
-      let v = serde_json::from_value(Value::String(serde_json::to_string(from.root.get("value").unwrap()).unwrap())).unwrap();
-      battery_esr_name.insert("value".to_string(), v);
-      Ok(TranslationResult::Changed)
+      // let vector = from.root.get("consumed_value").unwrap().get(0).unwrap().get("ndarray").unwrap().as_array().unwrap();
+      // let x = vector[0].as_f64().unwrap();
+      // let y = vector[1].as_f64().unwrap();
+      // let z = vector[2].as_f64().unwrap();
+
+      // let filter = HashMap::from([("name".to_string(), Value::String("position_eci_x".into()))]);
+      // let block = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
+      // block.insert("value".to_string(), x.into());
+      // let filter = HashMap::from([("name".to_string(), Value::String("position_eci_y".into()))]);
+      // let block = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
+      // block.insert("value".to_string(), y.into());
+      // let filter = HashMap::from([("name".to_string(), Value::String("position_eci_z".into()))]);
+      // let block = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
+      // block.insert("value".to_string(), z.into());
+      Ok(TranslationResult::Unchanged)
     },
   };
 

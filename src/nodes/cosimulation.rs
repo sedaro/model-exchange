@@ -69,7 +69,10 @@ impl Cosimulation {
               },
               NodeCommands::Changed => {
                 let t = Instant::now();
-                println!("TODO: Produce on change");
+                let model = read_model(&sedaroml_filename_clone).unwrap_or_else(
+                  |e| panic!("{}: Failed to read SedaroML: {:?}", identifier_clone, e)
+                );
+                put_to_simulator(&url(running_job_id.clone().unwrap()), &auth_header, &model);
                 tx_to_exchange.send(NodeResponses::Done(t.elapsed())).unwrap();
               },
               NodeCommands::Done => {},
@@ -80,7 +83,7 @@ impl Cosimulation {
         if running_job_id.is_some() {
           let job_id = running_job_id.clone().unwrap();
           let model = get_from_simulator(&url(job_id), &auth_header);
-          if prev_model.root.get("value").is_none() || model.root.get("value").unwrap() != prev_model.root.get("value").unwrap() { // TODO: Implement Model Eq
+          if prev_model.root.get("consumed_value").is_none() || model.root.get("consumed_value").unwrap() != prev_model.root.get("consumed_value").unwrap() { // TODO: Implement Model Eq
             debug!("{}: Model in simulation has changed. Updating...", identifier_clone);
             write_model(&sedaroml_filename_clone, &model).unwrap_or_else(
               |e| panic!("{}: Failed to write SedaroML to file: {:?}", identifier_clone, e)
@@ -163,12 +166,12 @@ fn cosim_response_to_model(v: serde_json::Value) -> Model {
   serde_json::from_value(serde_json::json!({
     "index": {},
     "blocks": {},
-    "value": v,
+    "consumed_value": v,
   })).unwrap()
 }
 
 fn model_to_cosim_request(model: &Model) -> serde_json::Value {
-  model.root.get("value").unwrap().clone()
+  model.root.get("produced_value").unwrap().clone()
 }
 
 /// Returns the ID of the running job, blocks otherwise
