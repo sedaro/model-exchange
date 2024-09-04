@@ -1,10 +1,7 @@
 /*
 TODO:
+Next step is to put together a compelling demo and show it off!
 000. Update Sedaro watcher to use ModelDiff instead of metadata for change detection? Slower?
-One method of conflict resolution is to bifurcate the model into two - one consume and one produce.  This allows for 
-uninterrupted translations but is restrictive in that a model can only write their half.  This is what the first version of cosimulation uses.
-- My current approach to this doesn't work well because it requires that the other models in the exchange also bifurcate.  How to solve this better? In the Translation?
-00. For cosimulation, seems like there should maybe be two types of models?? (one for consume and one for produce)
 0. Put things in the exchange that have dependencies but that aren't connected to other things in the exchange.  Do we allow for this?
   - i.e. two unconnected sub-graphs
 1. Docs (initially release as collision detection and resolution coming soon?)
