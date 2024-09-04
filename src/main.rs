@@ -14,9 +14,6 @@ uninterrupted translations but is restrictive in that a model can only write the
   - Exchange wants to write a file that has changed since it was read
 4. Add Cameo and AFSIM Nodes
 5. Satisfy remainder of Mosaic Warfare requirements: Web gui? REST API?
-6. Need to handle things like excel changing while the exchange isn't running, leaving a conflict between excel.xlsx and 
-excel.json on start up, translations to excel.xlsx can't operate over the current state of excel.xlsx
-- How to handle changes that occurred while exchange wasn't running?
 7. Get rid of metadata file and use ModelDiff for change detection
 8. Very likely communicating by writing to and from disk is a mistake and we should just be passing hte Models around between Nodes and the Exchange but need to think through this more and see if there is good reason to write to disk.  Maybe fault recovery?
 */
