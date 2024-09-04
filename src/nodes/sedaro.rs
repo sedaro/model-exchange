@@ -1,16 +1,16 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
-use crate::model::sedaroml::{Block, Model};
+use crate::model::sedaroml::{Block, Model, ModelDiff};
 use crate::model::sedaroml::{write_model, read_model};
 use crate::nodes::traits::Exchangeable;
-use log::{debug, info};
+use log::debug;
 use std::time::{Duration, Instant};
 use ureq;
 use crate::metadata::{read_metadata, write_metadata};
 use std::borrow::{Borrow, BorrowMut};
 use std::sync::mpsc;
 use std::thread;
-use crate::commands::{NodeCommands, NodeResponses};
+use crate::commands::{ConflictResolutions, NodeCommands, NodeResponses};
 
 #[derive(Clone)]
 pub enum SedaroCredentials {
@@ -61,21 +61,58 @@ impl Sedaro {
                   write_metadata(&metadata_filename, &date_modified).unwrap_or_else(
                     |e| panic!("{}: Failed to write metadata to file: {:?}", identifier_clone, e)
                   );
+                } else {
+                  // Check for changes since exchange was last run
+                  let current_rep = read_model(&sedaroml_filename_clone).unwrap_or_else(
+                    |e| panic!("{}: Failed to read SedaroML: {:?}", identifier_clone, e)
+                  );
+                  let (current_remote, _) = get_sedaro_model(&url, &auth_header);
+                  let diff = current_rep.diff(&current_remote);
+                  if !diff.is_empty() {
+                    tx_to_exchange.send(NodeResponses::Conflict(diff)).unwrap();
+                    continue;
+                  }
                 }
                 running = true;
                 tx_to_exchange.send(NodeResponses::Started).unwrap() 
+              },
+              NodeCommands::ResolveConflict(resolution_strategy) => {
+                let i = Instant::now();
+                match resolution_strategy {
+                  ConflictResolutions::KeepRep => {
+                    let model = read_model(&sedaroml_filename_clone).unwrap_or_else(
+                      |e| panic!("{}: Failed to read SedaroML from file: {:?}", identifier_clone, e)
+                    );
+                    let date_modified = put_sedaro_model(&url, &auth_header, &model);
+                    write_metadata(&metadata_filename, &date_modified).unwrap_or_else(
+                      |e| panic!("{}: Failed to write metadata to file: {:?}", identifier_clone, e)
+                    );
+                  },  
+                  ConflictResolutions::UpdateRep => {
+                    let (model, date_modified) = get_sedaro_model(&url, &auth_header);
+                    write_model(&sedaroml_filename_clone, &model).unwrap_or_else(
+                      |e| panic!("{}: Failed to write SedaroML to file: {:?}", identifier_clone, e)
+                    );
+                    write_metadata(&metadata_filename, &date_modified).unwrap_or_else(
+                      |e| panic!("{}: Failed to write metadata to file: {:?}", identifier_clone, e)
+                    );
+                  }
+                }
+                tx_to_exchange.send(NodeResponses::ConflictResolved(i.elapsed())).unwrap();
+                running = true;
+                tx_to_exchange.send(NodeResponses::Started).unwrap()
               },
               NodeCommands::Stop => {
                 running = false;
                 tx_to_exchange.send(NodeResponses::Stopped).unwrap();
               },
-              NodeCommands::Changed => {
+              NodeCommands::Changed(diff) => {
                 let t = Instant::now();
                 let url = format!("{}/template", &url);
                 let model = read_model(&sedaroml_filename_clone).unwrap_or_else(
                   |e| panic!("{}: Failed to read SedaroML from file: {:?}", identifier_clone, e)
                 );
-                let date_modified = put_sedaro_model(&url, &auth_header, &model);
+                let date_modified = put_sedaro_model_with_diff(&url, &auth_header, &model, &diff);
                 write_metadata(&metadata_filename, &date_modified).unwrap_or_else(
                   |e| panic!("{}: Failed to write metadata to file: {:?}", identifier_clone, e)
                 );
@@ -167,6 +204,31 @@ fn put_sedaro_model(url: &str, auth_header: &(String, String), model: &Model) ->
       "blocks": model.blocks.values().cloned().collect::<Vec<Block>>(),
       // TODO: Handle deletes (ideally we would have a model service route for just accepting a full model and updating it in place)
     })) {
+    Ok(response) => response.into_json::<serde_json::Value>().expect("Failed to deserialize response"),
+    Err(e) => {
+      let response: serde_json::Value = e.into_response().unwrap().into_json().expect("Failed to deserialize response");
+      panic!("Failed to update model: {}", response.get("error").unwrap().get("message").unwrap().as_str().unwrap());
+    },
+  };
+  response.get("branch").unwrap().get("dateModified").unwrap().to_string()
+}
+
+fn put_sedaro_model_with_diff(url: &str, auth_header: &(String, String), model: &Model, diff: &ModelDiff) -> String {
+  let updated_blocks = diff.updated_blocks.keys().map(
+    |id| { model.blocks.get(id).unwrap().clone() }
+  ).collect::<Vec<Block>>();
+
+  let payload = ureq::json!({
+    "root": diff.root.updated_fields.clone(),
+    "blocks": vec![updated_blocks, diff.added_blocks.values().cloned().collect::<Vec<Block>>()].concat(),
+    "delete": diff.removed_blocks.keys().cloned().collect::<Vec<String>>(),
+  });
+  debug!("Sending: {}", payload);
+
+  let response = match ureq::patch(&url)
+    .set("User-Agent", "modex/0.0")
+    .set(&auth_header.0, &auth_header.1)
+    .send_json(payload) {
     Ok(response) => response.into_json::<serde_json::Value>().expect("Failed to deserialize response"),
     Err(e) => {
       let response: serde_json::Value = e.into_response().unwrap().into_json().expect("Failed to deserialize response");

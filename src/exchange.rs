@@ -10,12 +10,12 @@ use notify_debouncer_mini::{
   DebounceEventResult,
 };
 use std::sync::{Arc, Mutex};
-use std::{panic, thread};
-use log::{info, error, debug};
-use crate::commands::{NodeCommands, NodeResponses};
+use std::{io, panic, thread};
+use log::{debug, error, info, warn};
+use crate::commands::{ConflictResolutions, NodeCommands, NodeResponses};
 use crate::model::sedaroml::write_model;
 use crate::change_queue::{ChangeQueue, QueuedSet};
-use crate::translations::{Translation, OperationFunction, TranslationResult};
+use crate::translations::{Translation, OperationFunction};
 use crate::nodes::traits::Exchangeable;
 use colored::Colorize;
 use std::time::Instant;
@@ -105,6 +105,29 @@ impl Exchange {
     for node in nodes.values() {
       let mut node = node.lock().unwrap();
       match node.tx_to_node_blocking(NodeCommands::Start) {
+        NodeResponses::Conflict(diff) => {
+          warn!("Conflict detected for Node: {}\n{:?}", node.identifier(), diff);
+          warn!("To resolve the conflict, select one of the following resolution strategies:");
+          warn!("  (C) - Overwrite the incoming representation with the current representation");
+          warn!("  (i) - Overwrite the current representation with the incoming representation");
+          let mut buffer = String::new();
+          io::stdin().read_line(&mut buffer).expect("Failed to read line");
+          buffer = buffer.trim().to_string();
+          let resolution_result = match buffer.to_lowercase().as_str() {
+            "c" => { node.tx_to_node_blocking(NodeCommands::ResolveConflict(ConflictResolutions::KeepRep)) },
+            "i" => { node.tx_to_node_blocking(NodeCommands::ResolveConflict(ConflictResolutions::UpdateRep)) },
+            _ => { panic!("Invalid resolution strategy: `{}`", buffer); },
+          };
+          match resolution_result {
+            NodeResponses::ConflictResolved(elapsed) => { info!("Conflict resolved. {:.2}s", elapsed.as_secs_f64()); },
+            _ => { panic!("Failed to resolve conflict for node: {}", node.identifier()); },
+          }
+          // Wait for start response.  This commanding is getting a bit out of hand.
+          match node.rx_from_node() {
+            NodeResponses::Started => {},
+            _ => { panic!("Failed to start node: {}", node.identifier()) }
+          }
+        },
         NodeResponses::Started => {},
         _ => { panic!("Failed to start node: {}", node.identifier()) }
       }
@@ -154,21 +177,22 @@ impl Exchange {
 
             let to = nodes.get_mut(&to_iden.clone()).unwrap().clone();
             let mut to = to.lock().unwrap();
-            let mut changed = false;
+            let to_rep_clone = to.rep().clone();
+            let mut to_rep_clone_for_logs = to_rep_clone.clone();
             for operation in operations {
               match operation {
                 OperationFunction::Forward(op_name, op) => {
                   match op(&from.rep(), &mut to.rep_mut()) {
-                    Ok(translation_status) => {
+                    Ok(_) => {
                       let arrow = match op_name {
                         Some(op_name) => format!("--({})-->", op_name),
                         None => "-->".into(),
                       };
-                      let mut result_str = "Changed".green();
-                      match translation_status {
-                        TranslationResult::Changed => { changed = true },
-                        TranslationResult::Unchanged => { result_str = "Unchanged".yellow() },
-                      }
+                      let result_str = if to_rep_clone_for_logs.diff(to.rep()).is_empty() {
+                        "Unchanged".yellow()
+                      } else {
+                        "Changed".green()
+                      };
                       info!("  Translation: {} {} {}: {}", from.identifier(), arrow, to.identifier(), result_str);
                     },
                     Err(e) => panic!("Translation {} -> {} failed: {:?}", from.identifier(), to.identifier(), e),
@@ -176,32 +200,35 @@ impl Exchange {
                 },
                 OperationFunction::Reverse(op_name, op) => {
                   match op(&from.rep(), &mut to.rep_mut()) {
-                    Ok(translation_status) => {
+                    Ok(_) => {
                       let arrow = match op_name {
                         Some(op_name) => format!("--({})^-1-->", op_name),
                         None => "-->".into(),
                       };
-                      let mut result_str = "Changed".green();
-                      match translation_status {
-                        TranslationResult::Changed => { changed = true },
-                        TranslationResult::Unchanged => { result_str = "Unchanged".yellow() },
-                      }
+                      let result_str = if to_rep_clone_for_logs.diff(to.rep()).is_empty() {
+                        "Unchanged".yellow()
+                      } else {
+                        "Changed".green()
+                      };
                       info!("  Translation: {} {} {}: {}", from.identifier(), arrow, to.identifier(), result_str);
                     },
                     Err(e) => panic!("Translation {} -> {} failed: {:?}", from.identifier(), to.identifier(), e),
                   }
                 },
               }
+              to_rep_clone_for_logs = to.rep().clone();
             }
             // Write model and notify node that its translation is complete in the current round
             // Note that its important that a translation into a node only ever happen from one other node in a given round
             // not from > 1.  
-            if changed { 
+
+            let to_diff = to_rep_clone.diff(to.rep());
+            if !to_diff.is_empty() { 
               changed_nodes.insert(to_iden.clone());
               write_model(&to.sedaroml_filename(), &to.rep()).unwrap_or_else(
                 |e| panic!("Failed to write model to file: {}: {:?}", to.sedaroml_filename(), e)
               );
-              to.tx_to_node(NodeCommands::Changed);
+              to.tx_to_node(NodeCommands::Changed(to_diff));
             } else {
               handle_unchanged(&to_iden, &mut visited_nodes, &translations_index); // Recursively add all deps to visited
             }

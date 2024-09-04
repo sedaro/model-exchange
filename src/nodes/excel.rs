@@ -1,5 +1,5 @@
-use crate::commands::{NodeCommands, NodeResponses};
-use crate::model::sedaroml::{Model, read_model};
+use crate::commands::{ConflictResolutions, NodeCommands, NodeResponses};
+use crate::model::sedaroml::{read_model, Model, ModelDiff};
 use crate::nodes::traits::Exchangeable;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -15,6 +15,7 @@ use notify_debouncer_mini::{
   new_debouncer, 
   DebounceEventResult,
 };
+use tempfile::NamedTempFile;
 
 #[derive(Clone)]
 pub struct Excel {
@@ -65,16 +66,50 @@ impl Excel {
                   excel_to_sedaroml(&excel_filename, &sedaroml_filename_clone).unwrap_or_else(
                     |e| panic!("{}: Failed to convert Excel to SedaroML: {}", identifier_clone, e)
                   );
+                } else {
+                  // Check for changes since exchange was last run
+                  let current_rep = read_model(&sedaroml_filename_clone).unwrap_or_else(
+                    |e| panic!("{}: Failed to read SedaroML: {:?}", identifier_clone, e)
+                  );
+                  let temp = NamedTempFile::new().unwrap();
+                  excel_to_sedaroml(&excel_filename, temp.path().to_str().unwrap()).unwrap_or_else(
+                    |e| panic!("{}: Failed to convert Excel to SedaroML: {}", identifier_clone, e)
+                  );
+                  let temp_rep = read_model(temp.path().to_str().unwrap()).unwrap_or_else(
+                    |e| panic!("{}: Failed to read SedaroML: {:?}", identifier_clone, e)
+                  );
+                  let diff = current_rep.diff(&temp_rep);
+                  if !diff.is_empty() {
+                    tx_to_exchange.send(NodeResponses::Conflict(diff)).unwrap();
+                    continue;
+                  }
                 }
                 watcher.watch(&Path::new(&excel_filename), RecursiveMode::Recursive).unwrap_or_else(|e| panic!("Failed to watch path: {}: {}", excel_filename, e));
-
+                tx_to_exchange.send(NodeResponses::Started).unwrap();
+              },
+              NodeCommands::ResolveConflict(resolution_strategy) => {
+                let t = Instant::now();
+                match resolution_strategy {
+                  ConflictResolutions::KeepRep => {
+                    sedaroml_to_excel(&sedaroml_filename_clone, &excel_filename).unwrap_or_else(
+                      |e| panic!("{}: Failed to convert SedaroML to Excel: {}", identifier_clone, e)
+                    );
+                  },
+                  ConflictResolutions::UpdateRep => {
+                    excel_to_sedaroml(&excel_filename, &sedaroml_filename_clone).unwrap_or_else(
+                      |e| panic!("{}: Failed to convert Excel to SedaroML: {}", identifier_clone, e)
+                    );
+                  },
+                }
+                tx_to_exchange.send(NodeResponses::ConflictResolved(t.elapsed())).unwrap();
+                watcher.watch(&Path::new(&excel_filename), RecursiveMode::Recursive).unwrap_or_else(|e| panic!("Failed to watch path: {}: {}", excel_filename, e));
                 tx_to_exchange.send(NodeResponses::Started).unwrap();
               },
               NodeCommands::Stop => { tx_to_exchange.send(NodeResponses::Stopped).unwrap() },
-              NodeCommands::Changed => {
+              NodeCommands::Changed(diff) => {
                 let t = Instant::now();
-                sedaroml_to_excel(&sedaroml_filename_clone, &excel_filename).unwrap_or_else(
-                  |e| panic!("{}: Failed to convert SedaroML to Excel: {}", identifier_clone, e)
+                reconcile_diff_to_excel(&sedaroml_filename_clone, &diff, &excel_filename).unwrap_or_else(
+                  |e| panic!("{}: Failed to convert SedaroML ModelDiff to Excel: {}", identifier_clone, e)
                 );
                 tx_to_exchange.send(NodeResponses::Done(t.elapsed())).unwrap();
               },
@@ -144,6 +179,19 @@ fn sedaroml_to_excel(sedaroml_filename: &str, excel_filename: &str) -> PyResult<
 
     let module = PyModule::import_bound(py, "modex.excel")?;
     module.getattr("sedaroml_to_excel")?.call1((sedaroml_filename, excel_filename))?;
+    Ok(())
+  })
+}
+
+fn reconcile_diff_to_excel(sedaroml_filename: &str, diff: &ModelDiff, excel_filename: &str) -> PyResult<()> {
+  let diff_str = serde_json::to_string(diff).unwrap();
+  Python::with_gil(|py| {
+    let sys = py.import_bound("sys")?;
+    sys.getattr("path")?.call_method1("append", ("/Users/sebastianwelsh/Development/sedaro/modex/.venv/lib/python3.12/site-packages",))?;
+    sys.getattr("path")?.call_method1("append", ("/Users/sebastianwelsh/Development/sedaro/modex/.venv/lib/python3.12/site-packages/aeosa",))?; // TODO: Ewwww!!!  How to do this better??
+
+    let module = PyModule::import_bound(py, "modex.excel")?;
+    module.getattr("reconcile_diff_to_excel")?.call1((sedaroml_filename, diff_str, excel_filename))?;
     Ok(())
   })
 }

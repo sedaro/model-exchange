@@ -3,15 +3,9 @@ use crate::model::sedaroml::Model;
 use crate::nodes::traits::Exchangeable;
 
 #[derive(Debug)]
-pub enum TranslationResult {
-  Unchanged,
-  Changed,
-}
-
-#[derive(Debug)]
 pub enum TranslationError {}
 
-type ModelOperationFn = fn(&Model, &mut Model) -> Result<TranslationResult, TranslationError>;
+type ModelOperationFn = fn(&Model, &mut Model) -> Result<(), TranslationError>;
 
 #[derive(Debug, Clone)]
 pub struct Operation {

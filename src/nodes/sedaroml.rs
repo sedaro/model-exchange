@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use crate::model::sedaroml::Model;
@@ -22,6 +23,7 @@ impl SedaroML {
   pub fn new(identifier: String, filename: String) -> Arc<Mutex<SedaroML>> {
     
     let identifier_clone = identifier.to_string().clone();
+    let filename_clone = filename.clone();
     let (tx_to_node, rx_in_node) = mpsc::channel::<NodeCommands>();
     let (tx_to_exchange, rx_in_exchange) = mpsc::channel::<NodeResponses>();
     thread::spawn(move || {
@@ -30,9 +32,15 @@ impl SedaroML {
           Ok(command) => {
             debug!("{}: Received command: {:?}", identifier_clone, command);
             match command {
-              NodeCommands::Start => { tx_to_exchange.send(NodeResponses::Started).unwrap() },
+              NodeCommands::ResolveConflict(_) => {},
+              NodeCommands::Start => { 
+                if !Path::exists(Path::new(&filename_clone)) {
+                  panic!("{}: SedaroML file {} doesn't exist.  This file must exist before the exchange can start.", identifier_clone, filename_clone);
+                }
+                tx_to_exchange.send(NodeResponses::Started).unwrap() 
+              },
               NodeCommands::Stop => { tx_to_exchange.send(NodeResponses::Stopped).unwrap() },
-              NodeCommands::Changed => { tx_to_exchange.send(NodeResponses::Done(Duration::from_secs(0))).unwrap() },
+              NodeCommands::Changed(_) => { tx_to_exchange.send(NodeResponses::Done(Duration::from_secs(0))).unwrap() },
               NodeCommands::Done => {},
             }
           },

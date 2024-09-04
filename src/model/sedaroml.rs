@@ -205,9 +205,9 @@ pub fn write_model(file_path: &str, model: &Model) -> Result<(), ModelError> {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct ValueDiff {
-  old_value: Value,
-  new_value: Value,
+pub struct ValueDiff {
+  pub old_value: Value,
+  pub new_value: Value,
 }
 
 impl PartialEq for ValueDiff {
@@ -218,10 +218,10 @@ impl PartialEq for ValueDiff {
 impl Eq for ValueDiff {}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct BlockDiff {
-  added_fields: IndexMap<String, Value>,
-  removed_fields: IndexMap<String, Value>,
-  updated_fields: IndexMap<String, ValueDiff>,
+pub struct BlockDiff {
+  pub added_fields: IndexMap<String, Value>,
+  pub removed_fields: IndexMap<String, Value>,
+  pub updated_fields: IndexMap<String, ValueDiff>,
 }
 
 impl PartialEq for BlockDiff {
@@ -233,12 +233,13 @@ impl PartialEq for BlockDiff {
 }
 impl Eq for BlockDiff {}
 
+/// A concise representation of the differences between two models.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct ModelDiff {
-  added_blocks: IndexMap<String, Block>,
-  removed_blocks: IndexMap<String, Block>,
-  updated_blocks: IndexMap<String, BlockDiff>,
-  root: BlockDiff,
+pub struct ModelDiff {
+  pub added_blocks: IndexMap<String, Block>,
+  pub removed_blocks: IndexMap<String, Block>,
+  pub updated_blocks: IndexMap<String, BlockDiff>,
+  pub root: BlockDiff,
 }
 
 impl PartialEq for ModelDiff {
@@ -250,6 +251,16 @@ impl PartialEq for ModelDiff {
   }
 }
 impl Eq for ModelDiff {}
+impl ModelDiff {
+  pub fn is_empty(&self) -> bool {
+    self.added_blocks.is_empty() && 
+    self.removed_blocks.is_empty() && 
+    self.updated_blocks.is_empty() && 
+    self.root.added_fields.is_empty() && 
+    self.root.removed_fields.is_empty() && 
+    self.root.updated_fields.is_empty()
+  }
+}
 
 #[cfg(test)]
 mod tests {
@@ -280,7 +291,7 @@ mod tests {
     let mut old = Model::new();
     let new =  Model::new();
 
-    assert_eq!(old.diff(&new), ModelDiff {
+    let empty_diff = ModelDiff {
       added_blocks: IndexMap::new(),
       removed_blocks: IndexMap::new(),
       updated_blocks: IndexMap::new(),
@@ -289,17 +300,10 @@ mod tests {
         removed_fields: IndexMap::new(),
         updated_fields: IndexMap::new(),
       },
-    });
-    assert_eq!(new.diff(&old), ModelDiff {
-      added_blocks: IndexMap::new(),
-      removed_blocks: IndexMap::new(),
-      updated_blocks: IndexMap::new(),
-      root: BlockDiff {
-        added_fields: IndexMap::new(),
-        removed_fields: IndexMap::new(),
-        updated_fields: IndexMap::new(),
-      },
-    });
+    };
+    assert_eq!(old.diff(&new), empty_diff);
+    assert_eq!(new.diff(&old), empty_diff);
+    assert!(empty_diff.is_empty());
 
     old.root.insert("name".to_string(), json!("root"));
     old.blocks.insert("1".to_string(), {
@@ -308,7 +312,7 @@ mod tests {
       block
     });
 
-    assert_eq!(old.diff(&new), ModelDiff {
+    let diff = ModelDiff {
       added_blocks: IndexMap::new(),
       removed_blocks: {
         let mut removed_blocks = IndexMap::new();
@@ -329,9 +333,11 @@ mod tests {
         },
         updated_fields: IndexMap::new(),
       },
-    });
+    };
+    assert!(!diff.is_empty());
+    assert_eq!(old.diff(&new), diff);
 
-    assert_eq!(new.diff(&old), ModelDiff {
+    let diff = ModelDiff {
       added_blocks: {
         let mut added_blocks = IndexMap::new();
         added_blocks.insert("1".to_string(), {
@@ -352,7 +358,9 @@ mod tests {
         removed_fields: IndexMap::new(),
         updated_fields: IndexMap::new(),
       },
-    });
+    };
+    assert!(!diff.is_empty());
+    assert_eq!(new.diff(&old), diff);
 
     let mut new = old.clone();
     new.root.insert("name".to_string(), json!("root2"));

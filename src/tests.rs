@@ -6,7 +6,7 @@ mod tests {
   use crate::model::sedaroml::{Model, Block};
   use crate::nodes::sedaroml::SedaroML;
   use crate::exchange::Exchange;
-  use crate::translations::{Operation, Translation, TranslationResult};
+  use crate::translations::{Operation, Translation};
   use crate::nodes::traits::Exchangeable;
 
 
@@ -22,12 +22,12 @@ mod tests {
       forward: |from: &Model, to: &mut Model| {
         let v = from.blocks.get("i").unwrap().get("v").unwrap().as_i64().unwrap() + 1;
         to.blocks.insert("i".into(), Block::from_iter([("v".into(), Value::Number(v.into()))]));
-        Ok(TranslationResult::Changed)
+        Ok(())
       },
       reverse: |from: &Model, to: &mut Model| {
         let v = from.blocks.get("i").unwrap().get("v").unwrap().as_i64().unwrap() - 1;
         to.blocks.insert("i".into(), Block::from_iter([("v".into(), Value::Number(v.into()))]));
-        Ok(TranslationResult::Changed)
+        Ok(())
       },
     };
     let multiply_two = Operation {
@@ -35,12 +35,12 @@ mod tests {
       forward: |from: &Model, to: &mut Model| {
         let v = from.blocks.get("i").unwrap().get("v").unwrap().as_i64().unwrap() * 2;
         to.blocks.insert("i".into(), Block::from_iter([("v".into(), Value::Number(v.into()))]));
-        Ok(TranslationResult::Changed)
+        Ok(())
       },
       reverse: |from: &Model, to: &mut Model| {
         let v = from.blocks.get("i").unwrap().get("v").unwrap().as_i64().unwrap() / 2;
         to.blocks.insert("i".into(), Block::from_iter([("v".into(), Value::Number(v.into()))]));
-        Ok(TranslationResult::Changed)
+        Ok(())
       },
     };
     let multiply_ten = Operation {
@@ -48,18 +48,18 @@ mod tests {
       forward: |from: &Model, to: &mut Model| {
         let v = from.blocks.get("i").unwrap().get("v").unwrap().as_i64().unwrap() * 10;
         to.blocks.insert("i".into(), Block::from_iter([("v".into(), Value::Number(v.into()))]));
-        Ok(TranslationResult::Changed)
+        Ok(())
       },
       reverse: |from: &Model, to: &mut Model| {
         let v = from.blocks.get("i").unwrap().get("v").unwrap().as_i64().unwrap() / 10;
         to.blocks.insert("i".into(), Block::from_iter([("v".into(), Value::Number(v.into()))]));
-        Ok(TranslationResult::Changed)
+        Ok(())
       },
     };
     let noop = Operation {
       name: Some("noop".into()),
-      forward: |_, _| { Ok(TranslationResult::Unchanged) },
-      reverse: |_, _| { Ok(TranslationResult::Unchanged) },
+      forward: |_, _| { Ok(()) },
+      reverse: |_, _| { Ok(()) },
     };
     let t_a = Translation {
       from: a.clone(),
