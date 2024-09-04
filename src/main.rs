@@ -190,20 +190,20 @@ async fn main() {
       Ok(())
     },
     reverse: |from: &Model, to: &mut Model| {
-      // let vector = from.root.get("consumed_value").unwrap().get(0).unwrap().get("ndarray").unwrap().as_array().unwrap();
-      // let x = vector[0].as_f64().unwrap();
-      // let y = vector[1].as_f64().unwrap();
-      // let z = vector[2].as_f64().unwrap();
+      let vector = from.root.get("consumed_value").unwrap().get(0).unwrap().get("ndarray").unwrap().as_array().unwrap();
+      let x = vector[0].as_f64().unwrap();
+      let y = vector[1].as_f64().unwrap();
+      let z = vector[2].as_f64().unwrap();
 
-      // let filter = HashMap::from([("name".to_string(), Value::String("position_eci_x".into()))]);
-      // let block = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
-      // block.insert("value".to_string(), x.into());
-      // let filter = HashMap::from([("name".to_string(), Value::String("position_eci_y".into()))]);
-      // let block = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
-      // block.insert("value".to_string(), y.into());
-      // let filter = HashMap::from([("name".to_string(), Value::String("position_eci_z".into()))]);
-      // let block = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
-      // block.insert("value".to_string(), z.into());
+      let filter = HashMap::from([("name".to_string(), Value::String("position_eci_x".into()))]);
+      let block = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
+      block.insert("value".to_string(), x.into());
+      let filter = HashMap::from([("name".to_string(), Value::String("position_eci_y".into()))]);
+      let block = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
+      block.insert("value".to_string(), y.into());
+      let filter = HashMap::from([("name".to_string(), Value::String("position_eci_z".into()))]);
+      let block = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
+      block.insert("value".to_string(), z.into());
       Ok(())
     },
   };
@@ -228,14 +228,15 @@ async fn main() {
     to: test.clone(),
     operations: vec![other],
   };
-  let exchange = Exchange::new(vec![t, tt]);
+  // let exchange = Exchange::new(vec![t, tt]);
 
-  // let translation_cosim = Translation {
-  //   from: excel.clone(),
-  //   to: cosim.clone(),
-  //   operations: vec![excel_to_cosim],
-  // };
+  let translation_cosim = Translation {
+    from: excel.clone(),
+    to: cosim.clone(),
+    operations: vec![excel_to_cosim],
+  };
 
   // let exchange = Exchange::new(vec![translation_cosim]);
+  let exchange = Exchange::new(vec![translation_cosim, t, tt]);
   exchange.wait();
 }
