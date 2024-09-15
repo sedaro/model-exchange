@@ -18,7 +18,7 @@ Model Exchange takes a model-based approach to interoperability, resulting in en
 
 #### Decentralized Translation Network
 
-Model Exchange follows a decentralized approach to the interfacing problem where translations between models (or "Nodes") in the exchange can be chained off any other Node.  In other words, there is no central "hub" that all translations must pass through.  This means that no rework is required to any existing translations and Nodes within an Exchange in order to integrate a new model.  It also means that if you already have a Translational model written and tested for a mapping `D <-> F`, you can easily plug model `F` into the Exchange because `D` already exists within the Exchange network. This approach is fundamental to driving the composability of Model Exchange components into application specific Exchanges.
+Model Exchange follows a decentralized approach to the interfacing problem where translations between models (or "Nodes") in the Exchange can be chained off any other Node.  In other words, there is no central "hub" that all translations must pass through.  This means that no rework is required to any existing translations and Nodes within an Exchange in order to integrate a new model.  It also means that if you already have a Translational model written and tested for a mapping `D <-> F`, you can easily plug model `F` into the Exchange because `D` already exists within the Exchange network. This approach is fundamental to driving the composability of Model Exchange components into application specific Exchanges.
 
 ```mermaid
 graph LR
@@ -80,7 +80,7 @@ Model Exchange makes the development of test suites for your model translations 
 
 The Model Exchange framework has opinions on how best to architecture and organize interoperability software with out of the box solutions to all of the common headaches and points of friction.  The framework is designed to be flexible and extensible to meet the needs of a wide range of applications and use-cases.
 
-An `Exchange` is composed of `Nodes` and `Translations`.  A `Node` wraps a distinct model and exposes a SedaroML representation (or `Rep`) to the exchange for `Translations` to read from and/or mutate.  Each `Node` has a string `identifier` that uniquely identifies it within the Exchange.  In cases where a Model Adapter is used, a thread can be spawned within the `Node` to perform change detection on the "foreign" model and reconcile changes between it and its `Rep`.
+An `Exchange` is composed of `Nodes` and `Translations`.  A `Node` wraps a distinct model and exposes a SedaroML representation (or `Rep`) to the `Exchange` for `Translations` to read from and/or mutate.  Each `Node` has a string `identifier` that uniquely identifies it within the Exchange.  In cases where a Model Adapter is used, a thread can be spawned within the `Node` to perform change detection on the "foreign" model and reconcile changes between it and its `Rep`.
 
 ```mermaid
 flowchart RL
@@ -104,7 +104,7 @@ classDef translation stroke:#0f0
   end
 ```
 
-A `Translaton` is how two `Nodes` are networked together within an exchange.  Each `Translation` is composed of `Operations`.  Today an `Operation` is a pair of functions (`forward` and `reverse`) which take a immutable `from` `Rep` and a mutable `to` `Rep`.  These functions may read `from` in order to mutate `to`.  In the example above, if `A`'s foreign model were to change, each `forward` `Operation` of `Translation A <-> B` would be executed with `Rep A` passed as `from` and `Rep B` passed as `to`.
+A `Translaton` is how two `Nodes` are networked together within an `Exchange`.  Each `Translation` is composed of `Operations`.  Today an `Operation` is a pair of functions (`forward` and `reverse`) which take a immutable `from` `Rep` and a mutable `to` `Rep`.  These functions may read `from` in order to mutate `to`.  In the example above, if `A`'s foreign model were to change, each `forward` `Operation` of `Translation A <-> B` would be executed with `Rep A` passed as `from` and `Rep B` passed as `to`.
 
 **Note:** Cycles are not supported in the Exchange translation network.
 
@@ -158,7 +158,7 @@ Its important to note that the query language is far more capable than what is d
 
 ### ModEx Status
 
-Model Exchange is in active devlopment.  Today, support for SedaroQL-based Translational models is not yet available.  During Exchange start-up, conflict detection and resolution between a "foreign" model and its local IR is implemented but conflict detection and resolution between different models in an exchange is not yet implemented.
+Model Exchange is in active devlopment.  Today, support for SedaroQL-based Translational models is not yet available.  During Exchange start-up, conflict detection and resolution between a "foreign" model and its local IR is implemented but conflict detection and resolution between different models in an Exchange is not yet implemented.
 
 ### Quick Start
 
