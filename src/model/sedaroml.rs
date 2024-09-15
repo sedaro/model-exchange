@@ -117,6 +117,15 @@ impl Model {
     Err(ModelError::BlockNotFound(format!("No Blocks matching filter criteria were found.")))
   }
 
+  pub fn get_block_by_name_mut(&mut self, block_name: &str) -> Result<&mut Block, ModelError> {
+    let filter = HashMap::from([("name".to_string(), Value::String(block_name.into()))]);
+    self.get_first_block_where_mut(&filter)
+  }
+  pub fn get_block_by_name(&self, block_name: &str) -> Result<&Block, ModelError> {
+    let filter = HashMap::from([("name".to_string(), Value::String(block_name.into()))]);
+    self.get_first_block_where(&filter)
+  }
+
   pub fn to_pretty_string(&self) -> String {
     serde_json::to_string_pretty(&self).unwrap()
   }
