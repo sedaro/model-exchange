@@ -1,7 +1,7 @@
 /*
 TODO:
 Next step is to put together a compelling demo and show it off!
-000. Update Sedaro watcher to use ModelDiff instead of metadata for change detection? Slower?
+000. Update Sedaro watcher to use ModelDiff instead of metadata for change detection? Slower? (Get rid of metadata file and use ModelDiff for change detection)
 0. Put things in the exchange that have dependencies but that aren't connected to other things in the exchange.  Do we allow for this?
   - i.e. two unconnected sub-graphs
 1. Docs (initially release as collision detection and resolution coming soon?)
@@ -10,9 +10,8 @@ Next step is to put together a compelling demo and show it off!
   - Watcher triggers while translation is in progress
   - Exchange wants to write a file that has changed since it was read
 4. Add Cameo and AFSIM Nodes
-5. Satisfy remainder of Mosaic Warfare requirements: Web gui? REST API?
-7. Get rid of metadata file and use ModelDiff for change detection
 8. Very likely communicating by writing to and from disk is a mistake and we should just be passing hte Models around between Nodes and the Exchange but need to think through this more and see if there is good reason to write to disk.  Maybe fault recovery?
+  - Is there any advantage to writing to disk with regards to cascading multiple exchanges, in different processes, off an another?
 */
 
 // Nodes impl an interface to check if the rep exists and if it doesn't, provides a cli capability for creating it
