@@ -35,7 +35,7 @@ classDef node stroke:#ff0
   end
 ```
 
-In this decentralized exchange network, if a change were to be detected in model `C`, the change will be propagated to all other models within the network via the existing Translational mappings.  Change detection is also possible such that if a change to `C` causes `B` to change but the Translational model `B <-> D` doesn't results in changes to `D`, `E` and `F` will not be affected.
+In this decentralized translation network, if a change were to be detected in model `C`, the change will be propagated to all other models within the network via the existing Translational mappings.  Optimizations also possible such that if a change to `C` causes `B` to change but the Translational model `B <-> D` doesn't results in changes to `D`, `E` and `F` will not be affected.
 
 #### Model Adapters
 
@@ -47,6 +47,10 @@ In Model Exchange, all models exist in a common intermediate representation (IR)
 - AFSIM
 - [Sedaro](https://sedaro.com)
 - Sedaro Cosimulation
+
+**Important Note:** The goal of a Model Adapter within an Exchange is only to represent a foreign model in the IR.  It isn't to translate the foreign model to a different ontology within the IR.  While developing a Model Adapter, the existing ontology of the foreign model should be maintained in order to leave the translation (and all of its complexities) up to the Exchange.  Model Adapters should also be written such that they should not need to be updated as the foreign model changes.  They should simply traverse the model and produce a deterministic resulting IR in SedaroML. 
+
+#### Language Agnostic
 
 One motivation for writing Model Exchange in Rust is the languages ability to interface with other ("foreign") langauges.  Rust's `std::ffi` module exposes utilities for constructing foreign function interface (FFI) bindings between Rust projects like Model Exchange and other languages like Python, Java, C++, etc.  This allows for the development of Model Adapters in nearly any language.  See the [Excel Node](./src/nodes/excel.rs) for an example of how to write a Model Adapter in Python.
 
@@ -76,7 +80,7 @@ Model Exchange makes the development of test suites for your model translations 
 
 The Model Exchange framework has opinions on how best to architecture and organize interoperability software with out of the box solutions to all of the common headaches and points of friction.  The framework is designed to be flexible and extensible to meet the needs of a wide range of applications and use-cases.
 
-An `Exchange` is composed of `Nodes` and `Translations`.  A `Node` wraps a distinct model and exposes a SedaroML representation (or `rep`) to the exchange for `Translations` to read from and/or mutate.  Each `Node` has a string `identifier` that uniquely identifies it within the Exchange.  In cases where a Model Adapter is used, a thread can be spawned within the `Node` to perform change detection on the "foreign" model and reconcile changes between it and its `rep`.
+An `Exchange` is composed of `Nodes` and `Translations`.  A `Node` wraps a distinct model and exposes a SedaroML representation (or `Rep`) to the exchange for `Translations` to read from and/or mutate.  Each `Node` has a string `identifier` that uniquely identifies it within the Exchange.  In cases where a Model Adapter is used, a thread can be spawned within the `Node` to perform change detection on the "foreign" model and reconcile changes between it and its `Rep`.
 
 ```mermaid
 flowchart RL
@@ -100,11 +104,11 @@ classDef translation stroke:#0f0
   end
 ```
 
-A `Translaton` is how two `Nodes` are networked together within an exchange.  Each `Translation` is composed of `Operations`.  Today an `Operation` is a pair of functions (`forward` and `reverse`) which take a immutable `from` `rep` and a mutable `to` `rep`.  These functions may read `from` to mutate `to`.  In the example above, if `A`'s foreign model were to change, each `forward` `Operation` of `Translation A <-> B` would be executed with `Rep A` passed as `from` and `Rep B` passed as `to`.
+A `Translaton` is how two `Nodes` are networked together within an exchange.  Each `Translation` is composed of `Operations`.  Today an `Operation` is a pair of functions (`forward` and `reverse`) which take a immutable `from` `Rep` and a mutable `to` `Rep`.  These functions may read `from` in order to mutate `to`.  In the example above, if `A`'s foreign model were to change, each `forward` `Operation` of `Translation A <-> B` would be executed with `Rep A` passed as `from` and `Rep B` passed as `to`.
 
 **Note:** Cycles are not supported in the Exchange translation network.
 
-Coming soon to Model Exchange is an upgrade to `Operations` where instead of writing code, engineers write SedaroQL queries to define the forward mapping from one `Node` to another.  These queries will compile to forward and reverse `Operations` that can be executed by the Exchange.  This capability will shortly following the release of SedaroQLv2 in Sedaro 4.16 and will support translation between ontologically different models such as those depicted below.
+Coming soon to Model Exchange is an upgrade to `Operations` where instead of writing code, engineers write SedaroQL queries to define the forward mapping from one `Node` to another.  These queries will compile to forward and reverse `Operations` that can be executed by the Exchange.  This capability will shortly follow the release of SedaroQLv2 in Sedaro 4.16 and will support translation between ontologically different models such as those depicted below.
 
 ```mermaid
 erDiagram
@@ -140,7 +144,7 @@ block!(name='spacecraft_battery_esr').value -*> Spacecraft.batteryPacks.esr
 
 where, in the first expressions, the units of `block!(name='spacecraft_mass').value` and `Spacecraft.dryMass` are inferred from the SedaroML representation of each model and the value is simply copied from one model to the other after a unit conversion from grams to kilograms; and in the second expression, the query engine multiplies the ESR value from `A`'s `block!(name='spacecraft_battery_esr').value` parameter by the number of battery packs in the target model to effectively translate the properties of `A` to `B`, despite their ontological differences.
 
-Within the Exchange, this query is then automatically reversed to map `B -> A` as:
+Within the Exchange, this query is then **automatically** reversed to map `B -> A` as:
 
 ```python
 # B -> A
