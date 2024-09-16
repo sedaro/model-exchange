@@ -8,7 +8,7 @@ Our experience building [Sedaro](https://sedaro.com) has solidified our belief t
 
 MBE integration is exceptionally complicated. This is largely because a transition to MBE processes lies at the intersection of a disparate set of motives. Management wants enhanced productivity and efficiency from MBE. The customer wants better performing, more optimized systems. Finally, the engineers and operators (those primarily using these tools) typically want to do their job with the tools and processes that work for them, without this being dictated from outside of their discipline. However, these users also generally want better outcomes and fewer meetings, documents, and redundant/uninteresting tasks. These disparate motivations and perspectives lead to several difficult challenges for model integration.
 
-This is where Model Exchange comes in.  ModEx facilitates an organic evolution of large-scale, authoritative synthetic environments through integration of existing tools, adoption of new tools and data sources, and streamlined, flexible process automation.  The beauty of easy, flexible interoperability is that a transition towards model-based engineering tooling and processes can be driven increasingly from the bottom up (i.e., users) and not from top down (i.e., management).
+This is where Model Exchange comes in.  ModEx facilitates an organic evolution of large-scale, authoritative synthetic environments through integration of existing tools, adoption of new tools and data sources, and streamlined, flexible process automation.  The beauty of this easy, flexible interoperability is that a transition towards model-based engineering tooling and processes can be driven increasingly from the bottom up (i.e., users) and not from top down (i.e., management).
 
 ### Key Concepts
 
@@ -35,11 +35,11 @@ classDef node stroke:#ff0
   end
 ```
 
-In this decentralized translation network, if a change were to be detected in model `C`, the change will be propagated to all other models within the network via the existing Translational mappings.  Optimizations also possible such that if a change to `C` causes `B` to change but the Translational model `B <-> D` doesn't results in changes to `D`, `E` and `F` will not be affected.
+In this decentralized translation network, if a change were to be detected in model `C`, the change will be propagated to all other models within the network via the existing Translational mappings.  Optimizations are also possible such that if a change to `C` causes `B` to change but the Translational model `B <-> D` doesn't results in changes to `D`, `E` and `F` will remain untouched.
 
 #### Model Adapters
 
-In Model Exchange, all models exist in a common intermediate representation (IR).  A simple adapter is written to convert a foreign model representation to and from the IR.  Model Exchange also ships with many built-in adapters:
+In Model Exchange, all models exist in a common intermediate representation (IR).  A simple adapter is written to convert a foreign model representation to and from the IR.  Model Exchange ships with many built-in adapters:
 
 - Excel
 - Magicdraw/Cameo Systems Modeler (SysML)
@@ -48,7 +48,7 @@ In Model Exchange, all models exist in a common intermediate representation (IR)
 - [Sedaro](https://sedaro.com)
 - Sedaro Cosimulation
 
-**Important Note:** The goal of a Model Adapter within an Exchange is only to represent a foreign model in the IR.  It isn't to translate the foreign model to a different ontology within the IR.  While developing a Model Adapter, the existing ontology of the foreign model should be maintained in order to leave the translation (and all of its complexities) up to the Exchange.  Model Adapters should also be written such that they should not need to be updated as the foreign model changes.  They should simply traverse the model and produce a deterministic resulting IR in SedaroML. 
+**Important Note:** The goal of a Model Adapter within an Exchange is only to represent a foreign model in the IR.  It isn't to translate the foreign model to a different ontology within the IR.  While developing a Model Adapter, the existing ontology of the foreign model should be maintained in order to leave the translation (and all of its complexities) up to the Exchange.  Model Adapters should also be written such that they should not need to be updated as the foreign model changes.  They should simply traverse the model and deterministically produce a resulting IR. 
 
 #### Language Agnostic
 
@@ -68,7 +68,7 @@ The open-source Sedaro Modeling Language (SedaroML) is used as the intermediate 
 
 SedaroML defines system properties and structure as normalized, interrelated, and hierarchical blocks of attributes. SedaroML is JSON-based and is designed to be easily human and machine readable/writeable. This includes model interpretation, traversal, etc.  Sedaro is editable as JSON in any text editor or within Sedaro Blueprint.
 
-SedaroML is also queryable via the open-source Sedaro Query Language (SedaroQL) which is particularly powerful in the ModEx use-case as it enables the definition of flexible, reversible, and easily maintained Translational mappings between input and output models.  Support for SedaroQL is a key enabling of future-proof translations in the ModEx Framework.
+SedaroML is also queryable via the open-source Sedaro Query Language (SedaroQL) which is particularly powerful in the ModEx use-case as it enables the definition of flexible, reversible, and easily maintained Translational mappings between input and output models.  Support for SedaroQL is a key enabler of future-proof translations in the ModEx Framework.
 
 Another advantage to using SedaroML is its seamless integration with the ever-growing Sedaro open-source ecosystem of tools, content, and services.
 
