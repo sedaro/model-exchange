@@ -1,6 +1,6 @@
 ### Model Exchange (ModEx)
 
-An open-source model translation framework powered by SedaroML and SedaroQL, written in Rust. Model Exchange enables flexible, multi-point exchange of model information between disparate tools that use disparate ontologies to represent – in part or in whole – similar information. 
+An open-source model translation framework powered by SedaroML and SedaroQL, written in Rust. Model Exchange enables flexible, multi-point exchange of model information between disparate tools that use disparate ontologies to represent - in part or in whole - similar information. 
 
 ### Motivation
 
