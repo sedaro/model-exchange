@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::thread::sleep;
 use std::{collections::HashMap, path::Path};
 use std::time::Duration;
-use notify_debouncer_mini::notify::FsEventWatcher;
+use notify_debouncer_mini::notify::RecommendedWatcher;
 use notify_debouncer_mini::Debouncer;
 use notify_debouncer_mini::{
   notify::RecursiveMode,
@@ -24,7 +24,7 @@ pub struct Exchange {
   change_queue: ChangeQueue,
   pub nodes: Arc<Mutex<HashMap<String, Arc<Mutex<dyn Exchangeable + Sync + Send>>>>>,
   translation_thread: thread::JoinHandle<()>,
-  pub watchers: Vec<Debouncer<FsEventWatcher>>,
+  pub watchers: Vec<Debouncer<RecommendedWatcher>>,
 }
 impl Exchange {
   pub fn new(translations: Vec<Translation>) -> Exchange {
@@ -298,7 +298,7 @@ fn handle_unchanged(iden: &str, visited: &mut HashSet<String>, translations: &Ha
   }
 }
 
-fn setup_file_watcher(identifier: String, path: String, queue: ChangeQueue) -> Debouncer<FsEventWatcher> {
+fn setup_file_watcher(identifier: String, path: String, queue: ChangeQueue) -> Debouncer<RecommendedWatcher> {
   let identifier = identifier.clone();
   let mut debouncer = new_debouncer(Duration::from_millis(5), move |res: DebounceEventResult| {
     match res {
