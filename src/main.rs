@@ -1,9 +1,8 @@
 use std::collections::HashMap;
-use modex::nodes::cosimulation::{Cosimulation, SimulationJobId};
 use modex::nodes::sedaroml::SedaroML;
 use serde_json::Value;
 use modex::logging::init_logger;
-use modex::model::sedaroml::Model;
+use modex::model::sedaroml::{Block, Model};
 use modex::nodes::sedaro::{Sedaro, SedaroCredentials};
 use modex::nodes::excel::Excel;
 use modex::exchange::Exchange;
@@ -22,82 +21,64 @@ async fn main() {
   let sedaro = Sedaro::new(
     "Wildfire".into(),
     "https://api.astage.sedaro.com".into(),
-    "PNdldNPBmJ2qRcYlBFCZnJ".into(),
+    "PPRRgD3kyVXT7FxcHQtxHK".into(),
     SedaroCredentials::ApiKey(api_key.to_string()),
   );
-  let api_key = secrets.get("PROD").unwrap().as_str().unwrap();
-  let cosim = Cosimulation::new(
-    "Wildfire Cosim".into(),
-    "https://api.sedaro.com".into(),
-    SimulationJobId::LatestForScenario("PNhrrFtnB5XYv2qJ8RcZzN".into()),
-    "NSghFfVT8ieam0ydeZGX-".into(),
-    "NZ2SHUkS95z1GtmMZ0CTk".into(),
-    SedaroCredentials::ApiKey(api_key.to_string()),
-  );
-  let test = SedaroML::new("test.json".into(), "test.json".into());
+  let csm = SedaroML::new("csm.json".into(), "csm.json".into());
 
-  let excel_to_sedaroml = Operation {
-    name: Some("-".into()),
+  let csm_to_sedaro = Operation {
+    name: Some("Cameo-Sedaro".into()),
     forward: |from: &Model, to: &mut Model| {
-      // get_first_block_where!(name='spacecraft_dry_mass').value as Mass.g -> Spacecraft.dryMass
-      let filter = HashMap::from([("name".to_string(), Value::String("battery_esr".into()))]);
-      let battery_esr_name = from.get_first_block_where(&filter).expect("Block matching filter expression not found.");
-      let esr = battery_esr_name.get("value").unwrap().as_f64().unwrap();
-      to.block_by_id_mut("NT0USZZSc9cZAmWJbClN-").expect("Block not found").insert("esr".to_string(), esr.into());
-      Ok(())
-    },
-    reverse: |from: &Model, to: &mut Model| {
-      // Spacecraft.root.dryMass as Mass.kg -> get_first_block_where!(name='spacecraft_dry_mass').value
-      let block = from.block_by_id("NT0USZZSc9cZAmWJbClN-").expect("Block not found");
-      let esr = block.get("esr").unwrap().as_f64().unwrap();
-      
-      let filter = HashMap::from([("name".to_string(), Value::String("battery_esr".into()))]);
-      let battery_esr_name = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
-      battery_esr_name.insert("value".to_string(), esr.into());
-      Ok(())
-    },
-  };
+      // Get all CSM Transitions and build map of (source name, target name) -> BlockID
+      let from_map = from.block_ids_of_type("Transition").unwrap().iter().map(|id| {
+        let block = from.block_by_id(id).expect("Block not found");
+        let source_block = from.block_by_id(block.get("source").unwrap().as_str().unwrap()).unwrap();
+        let source_name = source_block.get("name").unwrap();
+        let target_block = from.block_by_id(block.get("target").unwrap().as_str().unwrap()).unwrap();
+        let target_name = target_block.get("name").unwrap();
+        ((source_name.as_str().unwrap().to_string(), target_name.as_str().unwrap().to_string()), id.clone())
+      }).collect::<HashMap<_, _>>();
 
-  let excel_to_cosim = Operation {
-    name: Some("cosim".into()),
-    forward: |from: &Model, to: &mut Model| {
-      let filter = HashMap::from([("name".to_string(), Value::String("attitude_x".into()))]);
-      let block = from.get_first_block_where(&filter).expect("Block matching filter expression not found.");
-      let x = block.get("value").unwrap().as_f64().unwrap();
-      let filter = HashMap::from([("name".to_string(), Value::String("attitude_y".into()))]);
-      let block = from.get_first_block_where(&filter).expect("Block matching filter expression not found.");
-      let y = block.get("value").unwrap().as_f64().unwrap();
-      let filter = HashMap::from([("name".to_string(), Value::String("attitude_z".into()))]);
-      let block = from.get_first_block_where(&filter).expect("Block matching filter expression not found.");
-      let z = block.get("value").unwrap().as_f64().unwrap();
-      let filter = HashMap::from([("name".to_string(), Value::String("attitude_w".into()))]);
-      let block = from.get_first_block_where(&filter).expect("Block matching filter expression not found.");
-      let w = block.get("value").unwrap().as_f64().unwrap();
-      to.root.insert("produced_value".to_string(), serde_json::json!([{"ndarray": vec![x, y, z, w]}]));
-      Ok(())
-    },
-    reverse: |from: &Model, to: &mut Model| {
-      let vector = from.root.get("consumed_value").unwrap().get(0).unwrap().get("ndarray").unwrap().as_array().unwrap();
-      let x = vector[0].as_f64().unwrap();
-      let y = vector[1].as_f64().unwrap();
-      let z = vector[2].as_f64().unwrap();
+      // Reconcile in the to Model
+      // Get all Sedaro Transitions and build map of (source name, target name) -> BlockID
+      let mut to_map = to.block_ids_of_type("StateTransition").unwrap().iter().map(|id| {
+        let block = to.block_by_id(id).expect("Block not found");
+        let source_name = to.block_by_id(block.get("fromState").unwrap().as_str().unwrap()).unwrap().get("name").unwrap();
+        let target_name = to.block_by_id(block.get("toState").unwrap().as_str().unwrap()).unwrap().get("name").unwrap();
+        let pair = (source_name.as_str().unwrap().to_string(), target_name.as_str().unwrap().to_string());
+        // Remove missing transitions
+        if !from_map.contains_key(&pair) {
+          // println!("Removing {:?}", pair);
+          to.blocks.swap_remove(id);
+        }
+        (pair, id.clone())
+      }).collect::<HashMap<_, _>>();
 
-      let filter = HashMap::from([("name".to_string(), Value::String("position_eci_x".into()))]);
-      let block = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
-      block.insert("value".to_string(), x.into());
-      let filter = HashMap::from([("name".to_string(), Value::String("position_eci_y".into()))]);
-      let block = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
-      block.insert("value".to_string(), y.into());
-      let filter = HashMap::from([("name".to_string(), Value::String("position_eci_z".into()))]);
-      let block = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
-      block.insert("value".to_string(), z.into());
-      Ok(())
-    },
-  };
-
-  let other = Operation {
-    name: Some("other".into()),
-    forward: |_, _| {
+      // Add new transitions
+      let mut i = 0;
+      // println!("TO MAP: {:?}", to_map);
+      from_map.iter().for_each(|(key, _)| {
+        if key.0 != "" { // Edge case for handing the Pseudo State (i.e. the starting state)
+          if !to_map.contains_key(key) {
+            // println!("Adding {:?}", key);
+            let source = to.get_first_block_where(&HashMap::from([("name".to_string(), key.0.clone().into())])).expect("Block not found");
+            let target = to.get_first_block_where(&HashMap::from([("name".to_string(), key.1.clone().into())])).expect("Block not found");
+            let id = format!("$temp-{}", i);
+            to.blocks.insert(id.clone(), Block::from_iter([
+              ("id".into(), Value::String(id.clone())),
+              ("type".into(), Value::String("StateTransition".into())),
+              ("fromState".into(), source.get("id").unwrap().clone()),
+              ("toState".into(), target.get("id").unwrap().clone()),
+              ("conditions".into(), Value::Array(vec![])),
+              ("priority".into(), Value::Number(i.into())),
+            ]));
+            let fsm = to.get_first_block_where_mut(&HashMap::from([("name".to_string(), "FSM".into()), ("type".to_string(), "FiniteStateMachine".into())])).expect("Block not found");
+            fsm.get_mut("transitions").unwrap().as_array_mut().unwrap().push(Value::String(id.clone()));
+            to_map.insert(key.clone(), id.clone());
+            i += 1;
+          }
+        }
+      });
       Ok(())
     },
     reverse: |_, _| {
@@ -105,25 +86,32 @@ async fn main() {
     },
   };
 
-  let t = Translation {
-    from: excel.clone(),
+  let csm_to_excel = Operation {
+    name: Some("Cameo-Excel".into()),
+    forward: |from: &Model, to: &mut Model| {
+      let block = from.block_by_id("_2022x_14310360_1715122805261_303999_2891").expect("Block not found");
+      let mass = block.get("value").unwrap().as_f64().unwrap();
+      let filter = HashMap::from([("name".to_string(), Value::String("spacecraft_dry_mass".into()))]);
+      let battery_esr_name = to.get_first_block_where_mut(&filter).expect("Block matching filter expression not found.");
+      battery_esr_name.insert("value".to_string(), mass.into());
+      Ok(())
+    },
+    reverse: |_, _| {
+      Ok(())
+    },
+  };
+
+  let ta = Translation {
+    from: csm.clone(),
     to: sedaro.clone(),
-    operations: vec![excel_to_sedaroml],
+    operations: vec![csm_to_sedaro],
   };
-  let tt = Translation {
-    from: excel.clone(),
-    to: test.clone(),
-    operations: vec![other],
-  };
-  // let exchange = Exchange::new(vec![t, tt]);
-
-  let translation_cosim = Translation {
-    from: excel.clone(),
-    to: cosim.clone(),
-    operations: vec![excel_to_cosim],
+  let tb = Translation {
+    from: csm.clone(),
+    to: excel.clone(),
+    operations: vec![csm_to_excel],
   };
 
-  // let exchange = Exchange::new(vec![translation_cosim]);
-  let exchange = Exchange::new(vec![translation_cosim, t, tt]);
+  let exchange = Exchange::new(vec![ta, tb]);
   exchange.wait();
 }
