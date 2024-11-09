@@ -86,32 +86,42 @@ impl Model {
 
   pub fn get_first_block_where_mut(&mut self, search: &HashMap<String, Value>) -> Result<&mut Block, ModelError> {
     for (_, block) in self.blocks.iter_mut() { // TODO: Confirm order is deterministic here
+      let mut match_count = 0;
       for (k, v) in search.into_iter() {
         match block.get(k) {
-          Some(field_value) => { 
-            if *field_value == *v { 
-              return Ok(block);
+          Some(field_value) => {
+            if *field_value == *v {
+              match_count += 1;
+            } else {
+              break;
             }
-            break;
           },
           None => { break },
         }
+      }
+      if match_count == search.len() {
+        return Ok(block);
       }
     }
     Err(ModelError::BlockNotFound(format!("No Blocks matching filter criteria were found.")))
   }
   pub fn get_first_block_where(&self, search: &HashMap<String, Value>) -> Result<&Block, ModelError> {
     for (_, block) in self.blocks.iter() { // TODO: Confirm order is deterministic here
+      let mut match_count = 0;
       for (k, v) in search.into_iter() {
         match block.get(k) {
           Some(field_value) => {
             if *field_value == *v {
-              return Ok(block);
+              match_count += 1;
+            } else {
+              break;
             }
-            break;
           },
           None => { break },
         }
+      }
+      if match_count == search.len() {
+        return Ok(block);
       }
     }
     Err(ModelError::BlockNotFound(format!("No Blocks matching filter criteria were found.")))

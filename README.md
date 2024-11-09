@@ -216,6 +216,22 @@ async fn main() {
 }
 ```
 
+### Install
+
+1. Install Rust: https://www.rust-lang.org/tools/install
+2. `cargo build`
+
+### Run
+
+1. Configure python environment (optional - required if using Excel connector)
+```
+python -m venv .venv
+source .venv/bin/activate
+export PYTHONPATH=./
+```
+2. `cargo run`
+
+
 ### Examples
 
 See our [examples](./examples) for various Model Exchange configurations and use-cases.  Note that you may need a paid license to certain software tools (Excel, Cameo, AFSIM, etc.) to run several of the examples.

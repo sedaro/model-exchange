@@ -108,11 +108,19 @@ impl Sedaro {
               },
               NodeCommands::Changed(diff) => {
                 let t = Instant::now();
-                let url = format!("{}/template", &url);
+                let put_url = format!("{}/template", &url);
                 let model = read_model(&sedaroml_filename_clone).unwrap_or_else(
                   |e| panic!("{}: Failed to read SedaroML from file: {:?}", identifier_clone, e)
                 );
-                let date_modified = put_sedaro_model_with_diff(&url, &auth_header, &model, &diff);
+                let mut date_modified = put_sedaro_model_with_diff(&put_url, &auth_header, &model, &diff);
+                if diff.added_blocks.len() > 0 {
+                  // Fetch the model again in order to get the resolved relationships references (e.g., `temp-0`, etc.)
+                  let (model, _date_modified) = get_sedaro_model(&url, &auth_header);
+                  write_model(&sedaroml_filename_clone, &model).unwrap_or_else(
+                    |e| panic!("{}: Failed to write SedaroML to file: {:?}", identifier_clone, e)
+                  );
+                  date_modified = _date_modified;
+                }
                 write_metadata(&metadata_filename, &date_modified).unwrap_or_else(
                   |e| panic!("{}: Failed to write metadata to file: {:?}", identifier_clone, e)
                 );
