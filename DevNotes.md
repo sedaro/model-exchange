@@ -21,6 +21,7 @@
   - Is there any advantage to writing to disk with regards to cascading multiple exchanges, in different processes, off an another?
 - `modex_python.excel`
   - Check for range intersection as this would be illegal
+- Need to fix the the Exchange watcher trigger as a result of the Sedaro Node writing the model to disk when `temp-0`, etc. relationship references are resolved by the `put`.
 
 #### Other
 - Will need to handle inter-step translation dependencies such that dependent translations are conducted after their dependencies are translated
