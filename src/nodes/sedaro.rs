@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use crate::model::sedaroml::{Block, Model, ModelDiff};
 use crate::model::sedaroml::{write_model, read_model};
 use crate::nodes::traits::Exchangeable;
-use log::{debug, info};
+use log::debug;
 use std::time::{Duration, Instant};
 use ureq;
 use crate::metadata::{read_metadata, write_metadata};
