@@ -21,7 +21,7 @@ async fn main() {
   let sedaro = Sedaro::new(
     "Wildfire".into(),
     "https://api.astage.sedaro.com".into(),
-    "PPRRgD3kyVXT7FxcHQtxHK".into(),
+    "PPSbzJYtrMBV4lhgFXzK5Q".into(),
     SedaroCredentials::ApiKey(api_key.to_string()),
   );
   let csm = SedaroML::new("csm.json".into(), "csm.json".into());
@@ -48,8 +48,17 @@ async fn main() {
         let pair = (source_name.as_str().unwrap().to_string(), target_name.as_str().unwrap().to_string());
         // Remove missing transitions
         if !from_map.contains_key(&pair) {
-          // println!("Removing {:?}", pair);
+          println!("Removing {:?}", pair);
           to.blocks.swap_remove(id);
+          // Update index
+          let arr = to.index.get_mut("StateTransition").unwrap();
+          let index = arr.iter().position(|x| *x == *id).unwrap();
+          arr.remove(index);
+          // Remove from FSM block
+          let fsm = to.get_first_block_where_mut(&HashMap::from([("name".to_string(), "FSM".into()), ("type".to_string(), "FiniteStateMachine".into())])).expect("Block not found");
+          let arr = fsm.get_mut("transitions").unwrap().as_array_mut().unwrap();
+          let index = arr.iter().position(|x| *x == Value::String(id.clone())).unwrap();
+          arr.remove(index);
         }
         (pair, id.clone())
       }).collect::<HashMap<_, _>>();
@@ -60,9 +69,9 @@ async fn main() {
       from_map.iter().for_each(|(key, _)| {
         if key.0 != "" { // Edge case for handing the Pseudo State (i.e. the starting state)
           if !to_map.contains_key(key) {
-            // println!("Adding {:?}", key);
-            let source = to.get_first_block_where(&HashMap::from([("name".to_string(), key.0.clone().into())])).expect("Block not found");
-            let target = to.get_first_block_where(&HashMap::from([("name".to_string(), key.1.clone().into())])).expect("Block not found");
+            println!("Adding {:?}", key);
+            let source = to.get_first_block_where(&HashMap::from([("name".to_string(), key.0.clone().into()), ("type".to_string(), "Routine".into())])).expect("Block not found");
+            let target = to.get_first_block_where(&HashMap::from([("name".to_string(), key.1.clone().into()), ("type".to_string(), "Routine".into())])).expect("Block not found");
             let id = format!("$temp-{}", i);
             to.blocks.insert(id.clone(), Block::from_iter([
               ("id".into(), Value::String(id.clone())),
@@ -75,6 +84,9 @@ async fn main() {
             let fsm = to.get_first_block_where_mut(&HashMap::from([("name".to_string(), "FSM".into()), ("type".to_string(), "FiniteStateMachine".into())])).expect("Block not found");
             fsm.get_mut("transitions").unwrap().as_array_mut().unwrap().push(Value::String(id.clone()));
             to_map.insert(key.clone(), id.clone());
+            // Update index
+            let arr = to.index.get_mut("StateTransition").unwrap();
+            arr.push(id.clone());
             i += 1;
           }
         }
