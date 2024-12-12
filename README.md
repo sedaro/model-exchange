@@ -78,7 +78,7 @@ Model Exchange makes the development of test suites for your model translations 
 
 ### Architecture
 
-The Model Exchange framework has opinions on how best to architecture and organize interoperability software with out of the box solutions to all of the common headaches and points of friction.  The framework is designed to be flexible and extensible to meet the needs of a wide range of applications and use-cases.
+The Model Exchange framework has opinions on how best to architect and organize interoperability software with out of the box solutions to all of the common headaches and points of friction.  The framework is designed to be flexible and extensible to meet the needs of a wide range of applications and use-cases.
 
 An `Exchange` is composed of `Nodes` and `Translations`.  A `Node` wraps a distinct model and exposes a SedaroML representation (or `Rep`) to the `Exchange` for `Translations` to read from and/or mutate.  Each `Node` has a string `identifier` that uniquely identifies it within the Exchange.  In cases where a Model Adapter is used, a thread can be spawned within the `Node` to perform change detection on the "foreign" model and reconcile changes between it and its `Rep`.
 
