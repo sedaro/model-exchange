@@ -52,7 +52,7 @@ In Model Exchange, all models exist in a common intermediate representation (IR)
 
 #### Language Agnostic
 
-One motivation for writing Model Exchange in Rust is the languages ability to interface with other ("foreign") langauges.  Rust's `std::ffi` module exposes utilities for constructing foreign function interface (FFI) bindings between Rust projects like Model Exchange and other languages like Python, Java, C++, etc.  This allows for the development of Model Adapters in nearly any language.  See the [Excel Node](./src/nodes/excel.rs) for an example of how to write a Model Adapter in Python.
+One motivation for writing Model Exchange in Rust is the languages ability to interface with other ("foreign") languages.  Rust's `std::ffi` module exposes utilities for constructing foreign function interface (FFI) bindings between Rust projects like Model Exchange and other languages like Python, Java, C++, etc.  This allows for the development of Model Adapters in nearly any language.  See the [Excel Node](./src/nodes/excel.rs) for an example of how to write a Model Adapter in Python.
 
 #### Model Representations
 
