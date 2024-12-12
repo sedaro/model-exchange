@@ -60,7 +60,7 @@ There are 3 key model representation types used within an Exchange:
 
 1. Ontological: A representation that defines the properties and relationships of a model.
 2. Usage: A representation that defines how an Ontological model is used in a particular context.
-3. Translational: A Usage model that represents the bidrectional mapping between two Ontological/Usage model pairs.
+3. Translational: A Usage model that represents the bidirectional mapping between two Ontological/Usage model pairs.
 
 ##### Introduction to SedaroML
 
