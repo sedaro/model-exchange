@@ -46,6 +46,7 @@ In Model Exchange, all models exist in a common intermediate representation (IR)
 - SysMLv2 (coming soon)
 - AFSIM
 - [Sedaro](https://sedaro.com)
+- SedaroML
 - Sedaro Cosimulation
 
 **Important Note:** The goal of a Model Adapter within an Exchange is only to represent a foreign model in the IR.  It isn't to translate the foreign model to a different ontology within the IR.  While developing a Model Adapter, the existing ontology of the foreign model should be maintained in order to leave the translation (and all of its complexities) up to the Exchange.  Model Adapters should also be written such that they should not need to be updated as the foreign model changes.  They should simply traverse the model and deterministically produce a resulting IR. 
