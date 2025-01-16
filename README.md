@@ -169,10 +169,14 @@ use modex::nodes::sedaro::{Sedaro, SedaroCredentials};
 use modex::nodes::excel::Excel;
 use modex::exchange::Exchange;
 use modex::translations::{Operation, Translation};
+use modex::logging::init_logger;
 
 
 #[tokio::main]
 async fn main() {
+
+  // Initialize logger for output and CLI interaction
+  init_logger().expect("Failed to initialize logger.");
   
   // Instantiate Nodes
   let excel_node = Excel::new(
