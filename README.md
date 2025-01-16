@@ -104,7 +104,7 @@ classDef translation stroke:#0f0
   end
 ```
 
-A `Translaton` is how two `Nodes` are networked together within an `Exchange`.  Each `Translation` is composed of `Operations`.  Today an `Operation` is a pair of functions (`forward` and `reverse`) which take a immutable `from` `Rep` and a mutable `to` `Rep`.  These functions may read `from` in order to mutate `to`.  In the example above, if `A`'s foreign model were to change, each `forward` `Operation` of `Translation A <-> B` would be executed with `Rep A` passed as `from` and `Rep B` passed as `to`.
+A `Translation` is how two `Nodes` are networked together within an `Exchange`.  Each `Translation` is composed of `Operations`.  Today an `Operation` is a pair of functions (`forward` and `reverse`) which take an immutable `from` `Rep` and a mutable `to` `Rep`.  These functions may read `from` in order to mutate `to`.  In the example above, if `A`'s foreign model were to change, each `forward` `Operation` of `Translation A <-> B` would be executed with `Rep A` passed as `from` and `Rep B` passed as `to`.
 
 **Note:** Cycles are not supported in the Exchange translation network.
 
