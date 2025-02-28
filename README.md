@@ -233,6 +233,7 @@ async fn main() {
 python -m venv .venv
 source .venv/bin/activate
 export PYTHONPATH=./
+pip install -r modex/requirements.txt
 ```
 2. `cargo run`
 
